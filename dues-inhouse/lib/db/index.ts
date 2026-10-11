@@ -10,9 +10,11 @@ function connect(): postgres.Sql {
   return postgres(url, {
     max: Number(process.env.DATABASE_POOL ?? (local ? 5 : 3)),
     prepare: false,
-    idle_timeout: 20,
-    ssl: local ? false : "require",
-  });
+       // Supabase's transaction pooler can hand a pipelined query another query's rows; send one at a time.
+       max_pipeline: local ? 100 : 1,
+       idle_timeout: 20,
+       ssl: local ? false : "require",
+     } as postgres.Options<{}>);
 }
 
 export function db(): postgres.Sql {
