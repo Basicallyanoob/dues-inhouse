@@ -11,7 +11,7 @@ function connect(): postgres.Sql {
     max: Number(process.env.DATABASE_POOL ?? (local ? 5 : 3)),
     prepare: false,
        // Supabase's transaction pooler can hand a pipelined query another query's rows; send one at a time.
-       max_pipeline: local ? 100 : 1,
+       max_pipeline: local ? 100 : 0,
        idle_timeout: 20,
        ssl: local ? false : "require",
      } as postgres.Options<{}>);
