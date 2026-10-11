@@ -1,0 +1,69 @@
+# Hero -> role, spelled exactly as the game writes it in Workshop logs.
+# When a new hero is released, add a line here; unknown heroes are reported
+# by `overtime build` and their maps count towards the overall rating only.
+# Last checked 8 October 2026: Season 5 (6 October) added Doctrine and moved
+# Sombra from damage to support.
+tank:
+  - D.Mon
+  - D.Va
+  - Domina
+  - Doomfist
+  - Hazard
+  - Junker Queen
+  - Mauga
+  - Orisa
+  - Ramattra
+  - Reinhardt
+  - Roadhog
+  - Sigma
+  - Winston
+  - Wrecking Ball
+  - Zarya
+damage:
+  - Anran
+  - Ashe
+  - Bastion
+  - Cassidy
+  - Echo
+  - Emre
+  - Freja
+  - Genji
+  - Hanzo
+  - Junkrat
+  - Mei
+  - Pharah
+  - Reaper
+  - Shion
+  - Sierra
+  - Sojourn
+  - "Soldier: 76"
+  - Symmetra
+  - Torbjörn
+  - Tracer
+  - Vendetta
+  - Venture
+  - Widowmaker
+support:
+  - Ana
+  - Baptiste
+  - Brigitte
+  - Doctrine
+  - Illari
+  - Jetpack Cat
+  - Juno
+  - Kiriko
+  - Lifeweaver
+  - Lúcio
+  - Mercy
+  - Mizuki
+  - Moira
+  - Sombra
+  - Wuyang
+  - Zenyatta
+
+# Heroes whose role changed. Maps played before `from` use the old role, so
+# earlier games still count towards the role the player was actually filling.
+role_changes:
+  - hero: Sombra
+    was: damage
+    from: 2026-10-06

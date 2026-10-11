@@ -1,0 +1,37 @@
+# Valorant agent -> class, spelled as the match data spells it (KAY/O, not KAYO).
+# When a new agent is released, add a line here; unknown agents are reported by
+# `overtime build` and shown as "Unknown class" until they are added.
+# Last checked 9 October 2026: 29 agents, the newest Miks (controller, March 2026).
+duelist:
+  - Iso
+  - Jett
+  - Neon
+  - Phoenix
+  - Raze
+  - Reyna
+  - Waylay
+  - Yoru
+initiator:
+  - Breach
+  - Fade
+  - Gekko
+  - KAY/O
+  - Skye
+  - Sova
+  - Tejo
+controller:
+  - Astra
+  - Brimstone
+  - Clove
+  - Harbor
+  - Miks
+  - Omen
+  - Viper
+sentinel:
+  - Chamber
+  - Cypher
+  - Deadlock
+  - Killjoy
+  - Sage
+  - Veto
+  - Vyse
