@@ -65,6 +65,14 @@ export function heroRoles(): HeroRoles {
   return (heroCache = new HeroRoles(current, before));
 }
 
+let mapCache: string[] | null = null;
+/** The weekly map vote's pool (config/maps.yaml). */
+export function mapPool(): string[] {
+  if (mapCache) return mapCache;
+  const pool = (readYaml("maps.yaml").pool as unknown[] | undefined) ?? [];
+  return (mapCache = [...new Set(pool.map(String).filter(Boolean))].slice(0, 20));
+}
+
 let agentCache: Map<string, ValClass> | null = null;
 export function agentClasses(): Map<string, ValClass> {
   if (agentCache) return agentCache;

@@ -9,8 +9,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:push": "drizzle-kit push",
     "db:seed-demo": "tsx scripts/seed-demo.ts",
+    "discord:register": "tsx scripts/register-commands.ts",
+    "henrik:check": "tsx scripts/check-henrik.ts",
     "db:local": "bash scripts/local-db.sh"
   },
   "dependencies": {

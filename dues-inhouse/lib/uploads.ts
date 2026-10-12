@@ -72,7 +72,7 @@ async function processOne(name: string, bytes: Uint8Array, uploader: string | nu
       for (const raw of raws) {
         const [ok, why] = isCustomGame(raw, minPlayers);
         if (!ok) { skipped[why] = (skipped[why] ?? 0) + 1; continue; }
-        (await saveValMatch(trim(raw), uploader)) === "added" ? added++ : dup++;
+        (await saveValMatch(trim(raw), uploader, undefined, raw)) === "added" ? added++ : dup++;
       }
       const notes = Object.entries(skipped).map(([why, n]) => `${n} × ${why}`);
       out.push({ file: name, ok: added + dup > 0, message: `Valorant: ${added} added${dup ? `, ${dup} already imported` : ""}${notes.length ? `; skipped ${notes.join(", ")}` : ""}` });

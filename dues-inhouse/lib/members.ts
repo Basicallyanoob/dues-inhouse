@@ -15,9 +15,9 @@ export async function requestLink(playerId: string, game: Game, account: string)
   const [mine] = await sql`select status from game_accounts where player_id = ${playerId} and game = ${game} and account_key = ${key} and status <> 'rejected'`;
   if (mine) throw new MemberError(mine.status === "approved" ? "That account is already linked to you." : "You've already asked to link that account.");
   const [owner] = await sql`
-    select p.auth_id from game_accounts a join players p on p.id = a.player_id
+    select p.auth_id, p.discord_id from game_accounts a join players p on p.id = a.player_id
     where a.game = ${game} and a.account_key = ${key} and a.status = 'approved'`;
-  if (owner?.auth_id) throw new MemberError("Another member has already linked that account. Ask an officer if it's yours.");
+  if (owner?.auth_id || owner?.discord_id) throw new MemberError("Another member has already linked that account. Ask an officer if it's yours.");
   await sql`insert into game_accounts (player_id, game, account, account_key) values (${playerId}, ${game}, ${account.trim()}, ${key})`;
   return "pending";
 }
@@ -50,10 +50,11 @@ async function approveLinkTx(accountId: number, officerId: string) {
     const [a] = await tx`select * from game_accounts where id = ${accountId} for update`;
     if (!a || a.status !== "pending") throw new MemberError("That request has already been handled.");
     const [held] = await tx`
-      select a.id, a.player_id, p.auth_id from game_accounts a join players p on p.id = a.player_id
+      select a.id, a.player_id, p.auth_id, p.discord_id from game_accounts a join players p on p.id = a.player_id
       where a.game = ${a.game} and a.account_key = ${a.account_key} and a.status = 'approved'`;
     if (held && held.player_id !== a.player_id) {
-      if (held.auth_id) throw new MemberError("Another signed-in member already has that account. Remove it from them first.");
+      // Only unclaimed roster entries are folded in; someone known by Discord (site or bot) is a real other member.
+      if (held.auth_id || held.discord_id) throw new MemberError("Another member already has that account. Remove it from them first.");
       await mergeRoster(tx, held.player_id, a.player_id);
     }
     await tx`delete from game_accounts where id <> ${accountId} and player_id = ${a.player_id}
@@ -93,6 +94,60 @@ async function learnPuuidFromGames(tx: Tx, accountId: number) {
       where lower((p->>'name') || '#' || (p->>'tag')) = a.account_key and p->>'puuid' not like 'manual:%'
       order by m.played_at desc limit 1)
     where a.id = ${accountId} and a.puuid is null`;
+}
+
+/**
+ * /link from Discord. The API lookup has already shown the Riot ID exists, so
+ * the link is approved straight away (officers can still remove it on Admin >
+ * Members). Its account id and rank are stored: the id keeps the link working
+ * through name changes; the rank is only used to balance teams.
+ */
+export async function linkFromDiscord(playerId: string, riot: { account: string; puuid: string; current: number | null; peak: number | null }):
+  Promise<"linked" | "updated"> {
+  const problem = validAccount("valorant", riot.account);
+  if (problem) throw new MemberError(problem);
+  const key = accountKey("valorant", riot.account);
+  const sql = db();
+  // The same account under a different name (renamed since it was linked) is found by its id.
+  const [mine] = await sql`select id from game_accounts where player_id = ${playerId} and game = 'valorant' and status = 'approved'
+                           and (account_key = ${key} or puuid = ${riot.puuid})`;
+  if (mine) {
+    await sql`update game_accounts set account = ${riot.account.trim()}, account_key = ${key}, puuid = ${riot.puuid},
+              current_tier = ${riot.current}, peak_tier = ${riot.peak}, rank_checked_at = now() where id = ${mine.id}`;
+    await bumpDataVersion(sql);
+    return "updated";
+  }
+  const [other] = await sql`select 1 from game_accounts a join players p on p.id = a.player_id
+    where a.game = 'valorant' and a.status = 'approved' and a.player_id <> ${playerId}
+      and (a.account_key = ${key} or a.puuid = ${riot.puuid}) and (p.auth_id is not null or p.discord_id is not null)`;
+  if (other) throw new MemberError("Another member has already linked that Riot ID. Ask an officer if it's yours.");
+  await sql`delete from game_accounts where player_id = ${playerId} and game = 'valorant' and account_key = ${key} and status = 'pending'`;
+  const [row] = await sql`insert into game_accounts (player_id, game, account, account_key)
+                          values (${playerId}, 'valorant', ${riot.account.trim()}, ${key}) returning id`;
+  await approveLink(row.id, playerId);
+  await sql`update game_accounts set puuid = ${riot.puuid}, current_tier = ${riot.current}, peak_tier = ${riot.peak},
+            rank_checked_at = now() where id = ${row.id}`;
+  await bumpDataVersion(sql);
+  return "linked";
+}
+
+/** The member a Discord user is, making a roster entry for someone new. They merge on first web sign-in. */
+export async function playerForDiscord(user: { id: string; name: string }, create: boolean): Promise<{ id: string; role: string } | null> {
+  const sql = db();
+  const [p] = await sql`select id, role from players where discord_id = ${user.id}`;
+  if (p || !create) return (p as { id: string; role: string }) ?? null;
+  const name = user.name.replace(/#0$/, "").slice(0, 40).trim() || "Member";
+  const isAdminId = (process.env.ADMIN_DISCORD_IDS ?? "").split(/[,\s]+/).filter(Boolean).includes(user.id);
+  try {
+    const [row] = await sql`insert into players (discord_id, display_name, slug, role)
+      values (${user.id}, ${name}, ${await uniqueSlug(name)}, ${isAdminId ? "admin" : "member"}) returning id, role`;
+    await bumpDataVersion(sql);
+    return row as { id: string; role: string };
+  } catch (e) {
+    if ((e as { code?: string }).code !== "23505") throw e;
+    const [again] = await sql`select id, role from players where discord_id = ${user.id}`;
+    return (again as { id: string; role: string }) ?? null;
+  }
 }
 
 export async function rejectLink(accountId: number, officerId: string) {

@@ -38,17 +38,22 @@ async function freeOwId(id: string, sql: Sql): Promise<string> {
   return candidate;
 }
 
-export async function saveValMatch(m: StoredValMatch, uploader: string | null, sql: Sql = db()): Promise<"added" | "duplicate"> {
-  return inTx(sql, (tx) => saveValMatchTx(m, uploader, tx));
+/** raw: the full API response for the game, kept so later stats can be worked out for it. */
+export async function saveValMatch(m: StoredValMatch, uploader: string | null, sql: Sql = db(), raw?: unknown): Promise<"added" | "duplicate"> {
+  return inTx(sql, (tx) => saveValMatchTx(m, uploader, tx, raw));
 }
 
-async function saveValMatchTx(m: StoredValMatch, uploader: string | null, sql: Sql): Promise<"added" | "duplicate"> {
+async function saveValMatchTx(m: StoredValMatch, uploader: string | null, sql: Sql, raw?: unknown): Promise<"added" | "duplicate"> {
   const data = { server: m.server, players: m.players };
   const rows = await sql`
     insert into val_matches (id, played_at, map_name, score_blue, score_red, length_ms, source, data, uploaded_by)
     values (${m.id}, ${m.playedAt}, ${m.mapName}, ${m.score[0]}, ${m.score[1]}, ${m.lengthMs}, ${m.source},
             ${sql.json(data as never)}, ${uploader})
     on conflict (id) do nothing returning id`;
+  if (raw) {
+    // Also for duplicates: games imported before raw data was kept get it the next time they're seen.
+    await sql`insert into val_match_raw (id, raw) values (${m.id}, ${sql.json(raw as never)}) on conflict (id) do nothing`;
+  }
   if (!rows.length) return "duplicate";
   await learnPuuids(m, sql);
   await payValMatch(m.id, sql);

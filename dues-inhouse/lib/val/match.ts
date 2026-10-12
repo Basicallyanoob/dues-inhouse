@@ -48,13 +48,24 @@ export function matchesIn(payload: unknown): ApiMatch[] {
   return Array.isArray(p) ? p.filter((m) => m && typeof m === "object" && "metadata" in m) : [];
 }
 
-/** Whether an API match is a finished custom Blue-vs-Red game with enough players. */
+/** Queue ids Riot uses for games that aren't customs. Anything else unexpected is reported by name. */
+const KNOWN_QUEUES = new Set(["competitive", "unrated", "swiftplay", "spikerush", "deathmatch", "hurm", "teamdeathmatch",
+  "ggteam", "onefa", "snowball", "premier", "newmap", "skirmish"]);
+
+export const UNKNOWN_QUEUE = "skipped unknown queue type";
+
+/**
+ * Whether an API match is a finished custom Blue-vs-Red game with enough players.
+ * The request already asks for customs only (mode=custom); this checks again,
+ * because Riot changed the queue id from 'custom' to '' in 2026 and may change it again.
+ */
 export function isCustomGame(raw: ApiMatch, minPlayers: number): [boolean, string] {
   const md = raw.metadata ?? {};
   const q = md.queue ?? {};
   const qid = String(q.id ?? "").toLowerCase();
   const qname = String(q.name ?? "").toLowerCase();
   if (!(qname.startsWith("custom") || qid === "custom" || (qid === "" && !qname))) {
+    if (qid && !KNOWN_QUEUES.has(qid)) return [false, `${UNKNOWN_QUEUE} "${q.id}"${q.name ? ` (${q.name})` : ""}`];
     return [false, `a ${q.name || q.id || "non-custom"} game`];
   }
   if (md.is_completed === false) return [false, "not finished"];

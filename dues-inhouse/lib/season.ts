@@ -365,9 +365,13 @@ async function build(version: string): Promise<Site> {
     }
   }
   const valBook = rateGames(valMaps.map((m) => ({
-    id: m.id, winner: m.winner,
+    id: m.id, winner: m.winner, score: m.score,
     team1: m.players.filter((p) => p.teamNo === 1).map((p) => [p.person, null] as [string, null]),
     team2: m.players.filter((p) => p.teamNo === 2).map((p) => [p.person, null] as [string, null]),
+    perf: m.rounds ? m.players.map((p) => ({
+      player: p.person, acs: p.score / m.rounds, kd: p.kills / Math.max(1, p.deaths),
+      adr: p.damage === null ? null : p.damage / m.rounds,
+    })) : undefined,
   })));
 
   // XP from both games

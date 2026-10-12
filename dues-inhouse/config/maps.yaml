@@ -1,0 +1,16 @@
+# Maps the weekly map vote offers, spelled as the match data spells them.
+# Custom games can use any map, not just the ranked pool; remove any the club
+# doesn't want to play. A map played earlier the same night isn't offered again.
+pool:
+  - Abyss
+  - Ascent
+  - Bind
+  - Breeze
+  - Corrode
+  - Fracture
+  - Haven
+  - Icebox
+  - Lotus
+  - Pearl
+  - Split
+  - Sunset

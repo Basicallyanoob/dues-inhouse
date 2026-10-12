@@ -1,0 +1,59 @@
+# Runs the weeklies on a timer by calling the site on Vercel. Nothing here uses
+# GitHub Pages or a domain: it only makes HTTPS requests to the Vercel site.
+#
+# Needs, under Settings > Secrets and variables > Actions:
+#   variable SITE_URL     e.g. https://dues-inhouse.vercel.app (no trailing slash)
+#   secret   CRON_SECRET  the same value as CRON_SECRET on Vercel
+#
+# Times are UTC; GitHub can start scheduled runs 5-15 minutes late, which the
+# site allows for. Ireland is UTC+1 in summer and UTC+0 in winter, so the
+# Saturday range covers 16:00-01:00 Irish time either way.
+name: Weekly schedule
+
+on:
+  schedule:
+    - cron: "*/10 15-23 * * 6" # Saturday: sign-ups (17:00), teams, map votes, check-ins, results
+    - cron: "*/10 0-5 * * 0" # early Sunday: the last games' results
+    - cron: "0 9,15 * * 0" # Sunday 10:00 and 16:00 (summer): full import of every linked account
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which check to run
+        type: choice
+        options: [session, import]
+        default: session
+
+concurrency:
+  group: weekly-schedule
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITE_URL: ${{ vars.SITE_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: Check settings
+        run: |
+          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::Set the SITE_URL variable and CRON_SECRET secret (see the top of this file)."
+            exit 1
+          fi
+
+      - name: Full import
+        if: github.event.schedule == '0 9,15 * * 0' || inputs.job == 'import'
+        run: |
+          # Each call checks as many accounts as fit in 50 seconds; repeat until none remain.
+          for i in 1 2 3 4 5 6; do
+            out=$(curl --fail-with-body -sS --max-time 70 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/cron/valorant")
+            echo "$out"
+            remaining=$(echo "$out" | jq -r '.remaining // 0')
+            [ "$remaining" = "0" ] && break
+            sleep 5
+          done
+
+      - name: Session check
+        run: |
+          curl --fail-with-body -sS --max-time 70 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/cron/session"

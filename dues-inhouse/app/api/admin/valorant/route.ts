@@ -1,6 +1,7 @@
 import { sameOrigin } from "@/lib/origin";
 import { NextResponse, type NextRequest } from "next/server";
 import { getViewer, isOfficer } from "@/lib/auth";
+import { announceResults } from "@/lib/discord/schedule";
 import { FetchError, fetchBatch } from "@/lib/val/fetch";
 
 export const maxDuration = 60;
@@ -13,7 +14,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const since = body.since ? new Date(body.since) : new Date();
   try {
-    return NextResponse.json(await fetchBatch({ since, budgetMs: 45000, uploader: v!.id }));
+    const report = await fetchBatch({ since, budgetMs: 45000, uploader: v!.id });
+    // Weekly games found this way get their result posted in Discord, as with the scheduled check.
+    await announceResults(report).catch((e) => console.error("could not post weekly results", e));
+    return NextResponse.json(report);
   } catch (e) {
     if (e instanceof FetchError) return NextResponse.json({ error: e.message }, { status: 400 });
     throw e;

@@ -163,6 +163,91 @@ create table if not exists promo_redemptions (
   primary key (code, player_id)
 );
 
+-- The full API response for each imported game, kept apart from val_matches so
+-- pages don't load it. Lets later stats (KAST, multi-kills, plants, clutches,
+-- weapons) be worked out for every past week without fetching anything again.
+create table if not exists val_match_raw (
+  id text primary key references val_matches(id) on delete cascade,
+  raw jsonb not null,
+  fetched_at timestamptz not null default now()
+);
+
+-- Every HenrikDev request in the last minute or two, shared by all server
+-- instances, so the site as a whole stays under the key's 30 a minute.
+create table if not exists api_calls (
+  id bigserial primary key,
+  at timestamptz not null default now()
+);
+create index if not exists api_calls_at on api_calls (at);
+
+-- Valorant competitive tiers (3 = Iron 1 ... 27 = Radiant), current and peak,
+-- read when a Riot ID is linked from Discord and refreshed when its player
+-- joins a weekly. Used only to balance teams; everyone's rating starts level.
+alter table game_accounts add column if not exists current_tier integer;
+alter table game_accounts add column if not exists peak_tier integer;
+alter table game_accounts add column if not exists rank_checked_at timestamptz;
+
+-- Weeklies run from Discord: sign-ups, balanced teams, a map vote per game, and
+-- the custom game the API later finds for each one.
+create table if not exists weekly_sessions (
+  id serial primary key,
+  night date not null unique,              -- the club night (Saturday) it belongs to
+  status text not null default 'signup' check (status in ('signup', 'playing', 'closed')),
+  window_start timestamptz not null,       -- games count if they start inside the window
+  window_end timestamptz not null,
+  channel_id text,
+  signup_message_id text,
+  -- Before each game after the first, a check-in: who's playing the next one.
+  checkin_for integer,                     -- the game number it's for; null when none is open
+  checkin_message_id text,
+  checkin_closes_at timestamptz,
+  created_by uuid references players(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- The first game's sign-ups (everyone who played tonight is added here too).
+create table if not exists weekly_signups (
+  session_id integer not null references weekly_sessions(id) on delete cascade,
+  player_id uuid not null references players(id) on delete cascade,
+  signed_up_at timestamptz not null default now(),
+  primary key (session_id, player_id)
+);
+
+-- Check-ins for later games: each player says in or out again, so someone
+-- leaving mid-night is swapped for whoever is waiting.
+create table if not exists weekly_checkins (
+  session_id integer not null references weekly_sessions(id) on delete cascade,
+  game_number integer not null,
+  player_id uuid not null references players(id) on delete cascade,
+  playing boolean not null,
+  answered_at timestamptz not null default now(),
+  primary key (session_id, game_number, player_id)
+);
+
+create table if not exists weekly_games (
+  id serial primary key,
+  session_id integer not null references weekly_sessions(id) on delete cascade,
+  number integer not null,
+  status text not null default 'voting' check (status in ('voting', 'ready', 'played', 'cancelled')),
+  team_a uuid[] not null,
+  team_b uuid[] not null,
+  map_options text[] not null,
+  map_name text,
+  vote_closes_at timestamptz not null,
+  message_id text,
+  match_id text references val_matches(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (session_id, number)
+);
+create index if not exists weekly_games_open on weekly_games (status) where status in ('voting', 'ready');
+
+create table if not exists weekly_votes (
+  game_id integer not null references weekly_games(id) on delete cascade,
+  player_id uuid not null references players(id) on delete cascade,
+  map_name text not null,
+  primary key (game_id, player_id)
+);
+
 -- Small key/value settings; data_version changes whenever games change, so
 -- the site knows to recompute ratings.
 create table if not exists site_state (
@@ -183,3 +268,10 @@ alter table rolls enable row level security;
 alter table promo_codes enable row level security;
 alter table promo_redemptions enable row level security;
 alter table site_state enable row level security;
+alter table val_match_raw enable row level security;
+alter table api_calls enable row level security;
+alter table weekly_sessions enable row level security;
+alter table weekly_signups enable row level security;
+alter table weekly_checkins enable row level security;
+alter table weekly_games enable row level security;
+alter table weekly_votes enable row level security;

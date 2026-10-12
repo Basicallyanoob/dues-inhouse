@@ -1,13 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetDb } from "./db";
 
 const FIX = path.join(__dirname, "fixtures");
 
 describe("importing the demo season", () => {
   beforeAll(async () => {
+    // The Python site had no performance or margin adjustment; compare like with like (tests/ratings.test.ts covers them).
+    process.env.VAL_PERF_WEIGHT = "0";
+    process.env.VAL_MARGIN_WEIGHT = "0";
     await resetDb();
+  });
+  afterAll(() => {
+    delete process.env.VAL_PERF_WEIGHT;
+    delete process.env.VAL_MARGIN_WEIGHT;
   });
 
   it("reads every log and game in a zip, and skips them the second time", async () => {
