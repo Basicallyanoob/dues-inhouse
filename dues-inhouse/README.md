@@ -2,7 +2,7 @@
 
 # DUES Inhouses
 
-Leaderboards, records, player profiles and team builders for the Dublin University Esports Society's **Overwatch** and **Valorant** inhouses, with a club currency (**Crests**) and a banner collection members roll for in the shop.
+Leaderboards, records, player profiles and team builders for the Dublin University Esports Society's **Overwatch** and **Valorant** inhouses, with a Discord bot that runs the Saturday Valorant weeklies.
 
 It grew out of the static Overtime site and follows [Blueward](https://github.com/Kickblip/blueward), the League of Legends club tracker, feature for feature where it fits. It's written from scratch: Blueward has no licence, so none of its code or art is used.
 
@@ -10,40 +10,39 @@ It grew out of the static Overtime site and follows [Blueward](https://github.co
 
 - **Two games, one site.** A switch at the top moves between Overwatch and Valorant. Each has a ladder, every match with full scoreboards, single-game records, hero or agent stats, and a team builder.
 - **Ratings.** Openskill (Plackett-Luce), the same model as the Overtime site: an overall rating per game, plus tank, damage and support ratings in Overwatch. In Valorant everyone starts on 1000, whatever their rank, and only games move it: winning or losing sets the direction, the round margin scales the whole game (13–11 about 0.86×, 13–3 about 1.2×, `VAL_MARGIN_WEIGHT`), and performance in the lobby (mostly ACS, plus K/D and ADR) shares each team's change out, by up to ±30% (`VAL_PERF_WEIGHT`). Winners never lose rating, losers never gain, and performance only moves rating between teammates. Ratings are recomputed from the stored games, so changing a weight re-rates every past game. Competitive rank (current and peak) is used only to balance teams.
-- **Profiles.** One per member across both games: equipped banner, Discord picture, level, a 75-character note, rating chart, heroes or agents, best teammates and every game.
+- **Profiles.** One per member across both games: Discord picture, level, a 75-character note, rating chart, heroes or agents, best teammates and every game.
 - **Getting games in.**
   - *Overwatch:* hosts play with the ScrimTime Workshop mode; an officer drops the night's log files (or a zip) on **Admin > Games**.
   - *Valorant:* automatic. Every member's linked Riot ID is an anchor: the site reads each anchor's recent custom games from the unofficial [HenrikDev API](https://docs.henrikdev.xyz) and keeps finished ones that started in the Saturday window (18:30–03:30 Irish time) and are either a game the Discord bot set up (all ten of its players, on its map) or have at least 3 members. The full API response is kept for each game, so new stats can be worked out for past weeks later. A scoreboard can also be typed into a CSV when the API is down.
 - **Weeklies in Discord.** `/link Name#TAG` once (the bot looks up the account and its current and peak rank), then a **Join** button each Saturday. At 18:45 the bot balances the ten into two teams on rank and leaderboard rating, the ten vote on the map (2 minutes, tonight's maps left out), and after each game it posts the result with everyone's rating change. Then everyone checks in again for the next game, so someone leaving is swapped for whoever's waiting, and the new teams use the updated leaderboard.
 - **Accounts.** Members sign in with Discord, then ask to link their BattleTag and Riot ID. An officer approves each link, which joins every past and future game on that account to them and pays them for it. Roster entries for people who haven't signed in yet merge into them when they claim the account. A Riot name change doesn't split a profile: the site follows the account.
-- **Crests.** 600 per finished game (+200 for a win), 1,000 for the daily reward, and promo codes. They have no money value and can't be bought or traded.
-- **Banners.** Roll on a set for 1,000 (or 10 at once): common 56%, rare 30%, epic 11%, legendary 2.5%, ultimate 0.5%, with a legendary-or-better guarantee by the 60th roll. Duplicates refund 30 to 100% of the roll. Officers can make some banners buyable outright, run limited sets with their own dates and rates, and upload the art (pictures or short videos). Until art is uploaded, banners show a placeholder in their rarity's colour.
-- **Admin.** Approve account links, upload games, fetch Valorant, remove games (their Crests are taken back), add roster members or import the old Overtime roster, adjust Crests, set roles, manage banners, sets and promo codes.
+- **Valorant stats.** ACS, kills per round, damage per round, first bloods per round (the round's first kill, from the kill feed), headshot rate, spike plants and K/D. The full API response is kept for every game, so when the site learns to read a new stat, past games are re-read from it on the next import.
+- **Levels.** XP from every game in either game; the badge colour changes at levels 5, 10, 15, 25 and 40.
+- **Admin.** Approve account links, upload games, fetch Valorant, remove games, add roster members or import the old Overtime roster, set roles.
 
 What's still to come (stages 2 and 3): live rooms with captain drafts, predictions on games, and events such as a climb challenge.
 
 ## How it's built
 
-Next.js 16 on **Vercel**, with **Supabase** for the database (Postgres), Discord sign-in and banner image storage. Both have free plans that cover a society this size: Supabase's free plan gives a 500 MB database and 1 GB of storage, and pauses a project after a week with no activity, which the weekly schedule prevents.
+Next.js 16 on **Vercel**, with **Supabase** for the database (Postgres), and Discord sign-in. Both have free plans that cover a society this size: Supabase's free plan gives a 500 MB database and 1 GB of storage, and pauses a project after a week with no activity, which the weekly schedule prevents.
 
 The Discord bot runs on Vercel too: Discord sends slash commands and button clicks to `/api/discord` as signed web requests, so nothing has to stay running. The timer is a **GitHub Actions** workflow (`.github/workflows/schedule.yml`, at the top of the repository) that calls the site every 10 minutes on Saturday evenings and twice on Sunday. Vercel's free plan only allows cron jobs once a day, so it keeps one weekly run as a fallback. GitHub Actions doesn't use GitHub Pages or any domain.
 
 ```
-app/                 pages and server actions (admin/, overwatch/, valorant/, players/, shop/, me/)
-app/api/             JSON endpoints: rolls, daily reward, uploads, Valorant fetch, cron, discord
+app/                 pages and server actions (admin/, overwatch/, valorant/, players/, me/)
+app/api/             JSON endpoints: uploads, Valorant fetch, cron, discord
 lib/discord/         the bot: request signatures, commands, buttons, messages, the Saturday schedule
 lib/weekly/          sessions, sign-ups, team balancing, map votes, recognising each game's result
 lib/ow/parse.ts      ScrimTime log parser
 lib/val/             HenrikDev API import, Valorant match format, typed-in scoreboards, the Saturday window
 lib/season.ts        everything the stats pages show, rebuilt when games change
 lib/ratings.ts       openskill ratings (checked against the Python site's numbers in tests)
-lib/shop.ts          Crests, daily reward, rolls, pity, duplicates, buying, promo codes
 lib/members.ts       account links, approvals, roster merges, roles
-lib/economy.ts       every amount and price, in one place
+lib/levels.ts        XP per game and the level curve
 config/              heroes.yaml (hero roles), agents.yaml (agent classes), maps.yaml (map vote pool)
-supabase/            schema.sql and seed.sql for the database
+supabase/            schema.sql for the database
 public/              team builder scripts, fonts, crest
-tests/               vitest: parsing, ratings, shop rules, linking, Valorant import, builders
+tests/               vitest: parsing, ratings, linking, weeklies, Valorant import, builders
 ```
 
 ## Setting up
@@ -53,7 +52,7 @@ You need free accounts on GitHub, [Supabase](https://supabase.com), [Vercel](htt
 ### 1. Database (Supabase)
 
 1. Create a project. Pick the **West EU (Ireland)** region and save the database password somewhere safe. A password of only letters and numbers saves trouble later: `@ # / ? %` in a password break the connection string unless URL-encoded.
-2. Open **SQL Editor > New query**, paste all of `supabase/schema.sql`, and press **Run**. Then do the same with `supabase/seed.sql`, which adds the starter banner set. When `schema.sql` changes later (as with the Discord bot), run it again: it only adds what's missing.
+2. Open **SQL Editor > New query**, paste all of `supabase/schema.sql`, and press **Run**. When `schema.sql` changes later, run it again: it adds what's missing and removes what the site no longer uses (such as the old banner and Crests tables).
 
 ### 2. Discord sign-in
 
@@ -72,7 +71,6 @@ You need free accounts on GitHub, [Supabase](https://supabase.com), [Vercel](htt
    | `DATABASE_URL` | Supabase **Connect** (top bar) > **Transaction pooler** connection string (port 6543, host `…pooler.supabase.com`, user `postgres.<project ref>`), with your database password filled in. Not the *Direct connection* (`db.<ref>.supabase.co`): Vercel can't reach it and every page times out. If you used Vercel's Supabase integration, it makes `POSTGRES_URL` instead; copy its pooler value into `DATABASE_URL` |
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase **Project Settings > Data API**: Project URL |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase **Project Settings > API Keys**: the publishable (anon) key |
-   | `SUPABASE_SERVICE_ROLE_KEY` | Same page: the secret (service_role) key. Server-only, for banner art uploads. Never share it |
    | `ADMIN_DISCORD_IDS` | Your Discord user id (Discord settings > Advanced > Developer Mode on, then right-click your name > Copy User ID). Several ids can be separated by commas |
    | `HENRIKDEV_API_KEY` | Your HenrikDev key (`HDEV-...`) |
    | `CRON_SECRET` | Any long random text; the schedule sends it to the site's scheduled checks |
@@ -81,7 +79,7 @@ You need free accounts on GitHub, [Supabase](https://supabase.com), [Vercel](htt
    | `DISCORD_GUILD_ID`, `DISCORD_CHANNEL_ID` | Right-click the club's server, then the weeklies channel > **Copy ID** |
 
 3. Deploy. Copy the site's address (e.g. `https://dues-inhouse.vercel.app`).
-4. In Supabase, **Authentication > URL Configuration**: set **Site URL** to that address, and add `https://<your address>/auth/callback` under **Redirect URLs**.
+4. In Supabase, **Authentication > URL Configuration**: set **Site URL** to that address, and add `https://<your address>/**` under **Redirect URLs**, with the two stars: sign-in comes back to `/auth/callback?next=...`, which an entry without them doesn't match, and Supabase then drops you on the home page with `?code=` still signed out. Always open the site at that address, not a deployment's own `…-<hash>.vercel.app` address, or sign-in can't finish.
 5. Open the site and **Sign in with Discord**. Because your id is in `ADMIN_DISCORD_IDS`, you're an admin. Make other committee members officers on **Admin > Members** once they've signed in.
 
 If a page shows an error after deploying, open the deployment's **Logs** in Vercel. `DATABASE_URL is not set` means the variable is missing (or was added after the deploy: redeploy); a timeout or `ENOTFOUND` means it's the direct connection rather than the pooler.
@@ -133,11 +131,10 @@ Then **Actions > Weekly schedule > Run workflow** once to check it works (the lo
 
 ## Changing things
 
-- **Amounts and prices:** `lib/economy.ts` (Crests per game, daily reward, banner prices, duplicate refunds, level curve). Roll cost, rates and pity are per set, on **Admin > Banners**.
+- **Levels:** `lib/levels.ts` (XP per game and the level curve).
 - **New heroes or agents:** add them to `config/heroes.yaml` or `config/agents.yaml`. The leaderboards say when one is missing.
 - **Map pool:** `config/maps.yaml`. Keep it to the current competitive rotation; commit and the next deploy uses it.
 - **Other settings** (Vercel environment variables, all optional): `MIN_GAMES_RANKED` (games before someone appears on a ladder, default 5), `VAL_MIN_PLAYERS` (default 10), `VAL_MIN_MEMBERS` (default 3), `VAL_REGION` (default `eu`), `CLUB_TIME_ZONE` (default `Europe/Dublin`), `VAL_WINDOW` (default `sat 18:30-03:30`; `off` imports customs at any time), `VAL_PERF_WEIGHT` (default `0.3`; `0` for result-only ratings), `VAL_MARGIN_WEIGHT` (default `0.2`; `0` to ignore the round margin), `WEEKLY_AUTO` (`0` to open sign-ups and make teams by hand), `WEEKLY_SIGNUPS_OPEN` (default `17:00`), `WEEKLY_TEAMS_AT` (default `18:45`), `WEEKLY_VOTE_SECONDS` (default `120`), `WEEKLY_CHECKIN_SECONDS` (default `300`), `WEEKLY_RANK_GAMES` (default `8`), `DISCORD_LOG_CHANNEL_ID` (where the Sunday summary goes). If you change the Saturday times a lot, check the times in `.github/workflows/schedule.yml` still cover them.
-- **Banner art:** a wide picture, about 4:1 (1600 × 400 works well), PNG, JPEG or WebP, or a short WebM or MP4 for an animated banner, up to 4 MB.
 
 ## Running it on your computer
 
@@ -150,6 +147,7 @@ cp .env.example .env.local             # then set DATABASE_URL to what db:local 
 DATABASE_URL=postgres://postgres@localhost:5433/dues npm run db:seed-demo   # invented demo season
 npm run dev                            # http://localhost:3000
 npm test                               # uses a separate dues_test database (TEST_DATABASE_URL to change it)
+DATABASE_SERIAL=1 npm test             # the same, talking to the database the way the live site does (one query at a time)
 ```
 
 With `DEV_LOGIN=1`, the sign-in page lets you act as any player without Discord. It never works in production.

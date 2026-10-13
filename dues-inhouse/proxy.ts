@@ -23,5 +23,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Discord and the scheduled checks carry no sign-in cookie; skipping them saves a Supabase call per request.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|fonts/|banners/|api/cron|api/discord).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|fonts/|api/cron|api/discord).*)"],
 };

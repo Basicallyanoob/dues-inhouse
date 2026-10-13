@@ -2,7 +2,6 @@
 import { db, bumpDataVersion, type Tx } from "./db";
 import { accountKey, validAccount } from "./accounts";
 import { uniqueSlug } from "./auth";
-import { backfillCoins } from "./ingest";
 import type { Game } from "./games";
 
 export class MemberError extends Error {}
@@ -27,14 +26,13 @@ export async function removeLink(playerId: string, accountId: number, officer: b
   const [a] = await sql`select * from game_accounts where id = ${accountId}`;
   if (!a || (!officer && a.player_id !== playerId)) throw new MemberError("No such account.");
   await sql`delete from game_accounts where id = ${accountId}`;
-  // Coins already paid for past games stay paid.
   await bumpDataVersion(sql);
 }
 
 /**
  * Approve a link. If the account belonged to a roster entry made before the
- * person signed in, that entry is folded into them: its coins, banners and
- * other accounts move across, and the roster entry is removed.
+ * person signed in, that entry is folded into them: its other accounts move
+ * across, and the roster entry is removed.
  */
 export async function approveLink(accountId: number, officerId: string) {
   try {
@@ -63,7 +61,6 @@ async function approveLinkTx(accountId: number, officerId: string) {
     if (a.game === "valorant") await learnPuuidFromGames(tx, accountId);
     await tx`update game_accounts set status = 'rejected', reviewed_by = ${officerId}, reviewed_at = now()
              where id <> ${accountId} and game = ${a.game} and account_key = ${a.account_key} and status = 'pending'`;
-    await backfillCoins(tx);
     await bumpDataVersion(tx);
   });
 }
@@ -76,13 +73,6 @@ async function mergeRoster(tx: Tx, fromId: string, intoId: string) {
   await tx`delete from game_accounts f where f.player_id = ${fromId} and exists (
              select 1 from game_accounts t where t.player_id = ${intoId} and t.game = f.game and t.account_key = f.account_key)`;
   await tx`update game_accounts set player_id = ${intoId} where player_id = ${fromId}`;
-  await tx`delete from ledger f where f.player_id = ${fromId} and f.kind = 'game' and exists (
-             select 1 from ledger t where t.player_id = ${intoId} and t.kind = 'game' and t.ref = f.ref)`;
-  await tx`update ledger set player_id = ${intoId} where player_id = ${fromId}`;
-  await tx`insert into owned_banners (player_id, banner_id, how, obtained_at)
-           select ${intoId}, banner_id, how, obtained_at from owned_banners where player_id = ${fromId}
-           on conflict do nothing`;
-  await tx`update rolls set player_id = ${intoId} where player_id = ${fromId}`;
   await tx`delete from players where id = ${fromId} and auth_id is null`;
 }
 
@@ -173,7 +163,6 @@ export async function addRosterMember(name: string, battletags: string[], riotId
         if (game === "valorant") await learnPuuidFromGames(tx, row.id);
       }
     }
-    await backfillCoins(tx);
     await bumpDataVersion(tx);
     return p.id;
   });
@@ -209,11 +198,6 @@ export async function importRoster(csvText: string, officerId: string): Promise<
 
 export async function setRole(playerId: string, role: "member" | "officer" | "admin") {
   await db()`update players set role = ${role} where id = ${playerId}`;
-}
-
-export async function adjustCoins(playerId: string, amount: number, note: string, officerId: string) {
-  if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 1_000_000) throw new MemberError("Enter a whole number of Crests.");
-  await db()`insert into ledger (player_id, kind, amount, ref, note) values (${playerId}, 'admin', ${amount}, ${`by:${officerId}`}, ${note.trim() || "Officer adjustment"})`;
 }
 
 export async function updateProfile(playerId: string, name: string, note: string) {

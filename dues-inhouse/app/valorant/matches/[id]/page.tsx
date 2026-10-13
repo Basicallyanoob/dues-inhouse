@@ -39,7 +39,7 @@ export default async function ValorantMatch({ params }: { params: Promise<{ id: 
           <div className="scroll">
             <table>
               <caption className="sr">{t.name} scoreboard</caption>
-              <thead><tr><th scope="col">Player</th><th scope="col">Agent</th><th scope="col" className="num">ACS</th><th scope="col" className="num">K</th><th scope="col" className="num">D</th><th scope="col" className="num">A</th><th scope="col" className="num">+/–</th><th scope="col" className="num opt">ADR</th><th scope="col" className="num opt">HS%</th><th scope="col" className="num opt" title="First kill of a round">FB</th><th scope="col" className="num">Rating</th></tr></thead>
+              <thead><tr><th scope="col">Player</th><th scope="col">Agent</th><th scope="col" className="num">ACS</th><th scope="col" className="num">K</th><th scope="col" className="num">D</th><th scope="col" className="num">A</th><th scope="col" className="num">+/–</th><th scope="col" className="num opt">ADR</th><th scope="col" className="num opt">HS%</th><th scope="col" className="num opt" title="First kill of a round">FB</th><th scope="col" className="num opt" title="Spike plants">Plants</th><th scope="col" className="num">Rating</th></tr></thead>
               <tbody>
                 {t.rows.map((r) => {
                   const diff = r.line.kills - r.line.deaths;
@@ -52,6 +52,7 @@ export default async function ValorantMatch({ params }: { params: Promise<{ id: 
                       <td className="num"><span className={`pm ${diff > 0 ? "up" : diff < 0 ? "down" : "flat"}`}>{signed(diff)}</span></td>
                       <td className="num opt">{num(r.r.adr)}</td><td className="num opt">{pct(r.r.hs)}</td>
                       <td className="num opt">{r.line.first_bloods ?? "–"}</td>
+                      <td className="num opt">{r.line.plants ?? "–"}</td>
                       <td className="num"><Delta v={r.delta} /></td>
                     </tr>
                   );

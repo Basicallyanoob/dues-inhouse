@@ -7,7 +7,7 @@
  * anchors are checked in batches, oldest-checked first, within a time budget.
  */
 import { db, type Tx } from "../db";
-import { saveValMatch } from "../ingest";
+import { restatFromRaw, saveValMatch } from "../ingest";
 import { findWeeklyGame, linkWeeklyGame } from "../weekly/results";
 import { isCustomGame, matchesIn, normaliseRiot, trim, type ApiMatch } from "./match";
 import { RateLimited, takeSlot, type Priority } from "./limiter";
@@ -129,6 +129,8 @@ export interface FetchReport {
   errors: string[];
   /** Weekly games whose custom game was found in this run. */
   weekly: { gameId: number; matchId: string }[];
+  /** Stored games re-read from their saved API data for newer stats. */
+  restated?: number;
 }
 
 const blankReport = (): FetchReport => ({ checked: [], remaining: 0, added: [], duplicates: 0, skipped: {}, errors: [], weekly: [] });
@@ -190,6 +192,8 @@ export async function fetchBatch(opts: { since?: Date; budgetMs?: number; fetche
   const since = opts.since ?? new Date(Date.now() - 6 * 3600 * 1000);
   const deadline = Date.now() + (opts.budgetMs ?? 40000);
   const report = blankReport();
+  // Past games whose saved API data has stats the site didn't read when they were imported.
+  report.restated = await restatFromRaw().catch((e) => { report.errors.push(`refreshing stats: ${(e as Error).message}`); return 0; });
 
   const anchors = await sql`
     select id, account from game_accounts

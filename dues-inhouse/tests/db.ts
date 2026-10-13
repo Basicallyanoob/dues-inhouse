@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 
-/** A fresh test database for each test file, built from supabase/schema.sql and seed.sql. */
+/** A fresh test database for each test file, built from supabase/schema.sql. */
 export const TEST_URL = process.env.TEST_DATABASE_URL ?? "postgres://postgres@localhost:5433/dues_test";
 
 export async function resetDb(): Promise<void> {
@@ -13,7 +13,7 @@ export async function resetDb(): Promise<void> {
   await admin.unsafe(`create database ${name}`);
   await admin.end();
   const sql = postgres(TEST_URL, { max: 1, onnotice: () => {} });
-  for (const f of ["schema.sql", "seed.sql"]) await sql.unsafe(fs.readFileSync(path.join(__dirname, "..", "supabase", f), "utf8"));
+  for (const f of ["schema.sql"]) await sql.unsafe(fs.readFileSync(path.join(__dirname, "..", "supabase", f), "utf8"));
   await sql.end();
   process.env.DATABASE_URL = TEST_URL;
 }

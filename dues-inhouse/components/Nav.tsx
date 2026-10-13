@@ -24,7 +24,6 @@ export function SiteNav({ officer }: { officer: boolean }) {
   const links: [string, string][] = game
     ? SECTIONS[game].map(([href, label]) => [`/${game}${href}`, label])
     : [["/", "Home"]];
-  links.push(["/shop", "Shop"]);
   if (officer) links.push(["/admin", "Admin"]);
   const current = (href: string) =>
     href === `/${game}` || href === "/" ? path === href : path === href || path.startsWith(`${href}/`);

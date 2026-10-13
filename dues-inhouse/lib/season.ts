@@ -7,7 +7,7 @@
 import { db, dataVersion } from "./db";
 import { accountIndex, approvedAccounts } from "./accounts";
 import { agentClasses, heroRoles, OW_ROLES, VAL_CLASSES, type OwRole, type ValClass } from "./games";
-import { gameXp, levelFor } from "./economy";
+import { gameXp, levelFor } from "./levels";
 import { mainHero, STAT_KEYS, total, type HeroStats, type OwPlayer, type StatKey } from "./ow/parse";
 import { normaliseRiot, type ValLine } from "./val/match";
 import { rateGames, type RatingBook } from "./ratings";
@@ -24,7 +24,6 @@ export interface Person {
   name: string;
   memberId: string | null;
   avatarUrl: string | null;
-  bannerId: number | null;
   note: string | null;
   owNames: Set<string>;
   riotIds: Set<string>;
@@ -110,7 +109,7 @@ export interface ValMatchRow {
   winner: 0 | 1 | 2;
 }
 
-export const VAL_TOTAL_KEYS = ["rounds", "score", "kills", "deaths", "assists", "damage", "damage_rounds", "headshots", "shots", "first_bloods", "fb_rounds"] as const;
+export const VAL_TOTAL_KEYS = ["rounds", "score", "kills", "deaths", "assists", "damage", "damage_rounds", "headshots", "shots", "first_bloods", "fb_rounds", "plants", "plant_games"] as const;
 export type ValTotals = Record<(typeof VAL_TOTAL_KEYS)[number], number>;
 export const blankTotals = (): ValTotals => Object.fromEntries(VAL_TOTAL_KEYS.map((k) => [k, 0])) as ValTotals;
 
@@ -123,18 +122,29 @@ export function addLine(t: ValTotals, p: ValLine, rounds: number) {
   if (p.damage !== null) { t.damage += p.damage; t.damage_rounds += rounds; }
   if (p.headshots !== null) { t.headshots += p.headshots; t.shots += p.headshots + (p.bodyshots ?? 0) + (p.legshots ?? 0); }
   if (p.first_bloods !== null) { t.first_bloods += p.first_bloods; t.fb_rounds += rounds; }
+  if (p.plants != null) { t.plants += p.plants; t.plant_games += 1; }
 }
 
-export interface ValRates { acs: number | null; kd: number | null; adr: number | null; hs: number | null; fb: number | null }
+export interface ValRates {
+  acs: number | null;
+  kd: number | null;
+  kpr: number | null; // kills per round
+  adr: number | null;
+  hs: number | null;
+  fbpr: number | null; // first bloods per round
+  plants: number | null; // spike plants in total
+}
 
 export function valRates(t: ValTotals): ValRates {
   const r = t.rounds;
   return {
     acs: r ? t.score / r : null,
     kd: t.deaths ? t.kills / t.deaths : r ? t.kills : null,
+    kpr: r ? t.kills / r : null,
     adr: t.damage_rounds ? t.damage / t.damage_rounds : null,
     hs: t.shots ? t.headshots / t.shots : null,
-    fb: t.fb_rounds ? (t.first_bloods / t.fb_rounds) * 24 : null,
+    fbpr: t.fb_rounds ? t.first_bloods / t.fb_rounds : null,
+    plants: t.plant_games ? t.plants : null,
   };
 }
 
@@ -210,7 +220,7 @@ export async function getSite(): Promise<Site> {
 async function build(version: string): Promise<Site> {
   const sql = db();
   const [members, accounts, owRows, valRows] = await Promise.all([
-    sql`select id, display_name, slug, avatar_url, banner_id, note from players`,
+    sql`select id, display_name, slug, avatar_url, note from players`,
     approvedAccounts(sql),
     sql`select * from ow_maps order by played_at, id`,
     sql`select * from val_matches order by played_at, id`,
@@ -220,7 +230,7 @@ async function build(version: string): Promise<Site> {
   const taken = new Set<string>();
   for (const m of members) {
     people.set(m.id, { key: m.id, slug: m.slug, name: m.display_name, memberId: m.id, avatarUrl: m.avatar_url,
-      bannerId: m.banner_id, note: m.note, owNames: new Set(), riotIds: new Set(), linked: { overwatch: [], valorant: [] } });
+      note: m.note, owNames: new Set(), riotIds: new Set(), linked: { overwatch: [], valorant: [] } });
     taken.add(m.slug);
   }
   for (const a of accounts) people.get(a.playerId)?.linked[a.game].push(a.account);
@@ -231,7 +241,7 @@ async function build(version: string): Promise<Site> {
     let slug = slugify(name);
     while (taken.has(slug)) slug += "-x";
     taken.add(slug);
-    p = { key, slug, name, memberId: null, avatarUrl: null, bannerId: null, note: null, owNames: new Set(), riotIds: new Set(),
+    p = { key, slug, name, memberId: null, avatarUrl: null, note: null, owNames: new Set(), riotIds: new Set(),
       linked: { overwatch: [], valorant: [] } };
     people.set(key, p);
     return p;

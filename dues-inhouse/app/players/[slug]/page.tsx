@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BannerArt, toBanner } from "@/components/Banner";
 import { Avatar, Delta, Level, num, pct, PlayerLink, RatingChart } from "@/components/ui";
 import { db } from "@/lib/db";
 import { CLASS_LABEL, ROLE_LABEL, type OwRole } from "@/lib/games";
@@ -25,24 +24,17 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   const valP = site.val.players.get(person.key);
   const game = asked === "valorant" && valP ? "valorant" : asked === "overwatch" && owP ? "overwatch"
     : (valP?.apps.length ?? 0) > (owP?.apps.length ?? 0) ? "valorant" : owP ? "overwatch" : valP ? "valorant" : null;
-  // Banner, note and picture change without games changing, so read them fresh rather than from the season cache.
-  const [fresh] = person.memberId ? await db()`select banner_id, note, avatar_url from players where id = ${person.memberId}` : [];
-  const bannerId = fresh?.banner_id ?? null;
+  // Note and picture change without games changing, so read them fresh rather than from the season cache.
+  const [fresh] = person.memberId ? await db()`select note, avatar_url from players where id = ${person.memberId}` : [];
   const note = fresh ? fresh.note : person.note;
   const avatarUrl = fresh ? fresh.avatar_url : person.avatarUrl;
-  const [bannerRow] = bannerId ? await db()`select * from banners where id = ${bannerId}` : [];
   const lv = level(site, person.key);
   const aliases = [...person.owNames].filter((n) => n !== person.name);
   return (
     <>
-      <section className="profile-banner" aria-label={`${person.name}'s banner`}>
-        <BannerArt b={bannerRow ? toBanner(bannerRow) : null} />
-        <div className="who">
-          <Avatar name={person.name} url={avatarUrl} large />
-          <div>
-            <h1>{person.name}</h1>
-          </div>
-        </div>
+      <section className="profile-head">
+        <Avatar name={person.name} url={avatarUrl} large />
+        <h1>{person.name}</h1>
       </section>
       {note && <p className="note">“{note}”</p>}
       <p className="aka">

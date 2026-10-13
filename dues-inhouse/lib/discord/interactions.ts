@@ -130,9 +130,10 @@ async function ratingCommand(i: Interaction, targetId: string | null) {
       title: `${ps.person.name} · ${site.val.book.value(p.id)}`, color: 0xd8323c,
       description: `#${place} of ${ladder.length} · ${rec[0] + rec[1] + rec[2]} games · ${recordText(rec)}`,
       fields: [
-        { name: "ACS", value: fmt(r.acs), inline: true }, { name: "K/D", value: fmt(r.kd, 2), inline: true },
-        { name: "ADR", value: fmt(r.adr), inline: true }, { name: "HS%", value: fmt(r.hs, 0, true), inline: true },
-        { name: "First bloods / 24 rounds", value: fmt(r.fb, 1), inline: true },
+        { name: "ACS", value: fmt(r.acs), inline: true }, { name: "KPR", value: fmt(r.kpr, 2), inline: true },
+        { name: "ADR", value: fmt(r.adr), inline: true }, { name: "First bloods / round", value: fmt(r.fbpr, 2), inline: true },
+        { name: "HS%", value: fmt(r.hs, 0, true), inline: true }, { name: "Plants", value: fmt(r.plants), inline: true },
+        { name: "K/D", value: fmt(r.kd, 2), inline: true },
       ],
     }],
   });

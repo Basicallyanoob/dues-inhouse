@@ -33,7 +33,7 @@ export default async function Games({ searchParams }: { searchParams: Promise<{ 
       </section>
       <section>
         <h2>Recent games</h2>
-        <p className="lede">Remove a game that shouldn&apos;t count (a warm-up, a test). The coins it paid are taken back and ratings are recalculated.</p>
+        <p className="lede">Remove a game that shouldn&apos;t count (a warm-up, a test). Ratings are recalculated without it.</p>
         <div className="scroll"><table>
           <thead><tr><th scope="col">When</th><th scope="col">Game</th><th scope="col">Map and score</th><th scope="col">Remove</th></tr></thead>
           <tbody>{recent.map((g) => (
@@ -41,7 +41,7 @@ export default async function Games({ searchParams }: { searchParams: Promise<{ 
               <td>{shortDay(g.at)}, {clock(g.at)}</td>
               <td>{g.game === "overwatch" ? "Overwatch" : "Valorant"}</td>
               <td><Link href={`/${g.game}/matches/${encodeURIComponent(g.id)}`}>{g.label}</Link></td>
-              <td><form className="inline-form" action={removeGame}><input type="hidden" name="game" value={g.game} /><input type="hidden" name="id" value={g.id} /><ConfirmButton message={`Remove ${g.label}? The Crests it paid are taken back.`}>Remove</ConfirmButton></form></td>
+              <td><form className="inline-form" action={removeGame}><input type="hidden" name="game" value={g.game} /><input type="hidden" name="id" value={g.id} /><ConfirmButton message={`Remove ${g.label}? Ratings are recalculated without it.`}>Remove</ConfirmButton></form></td>
             </tr>
           ))}</tbody>
         </table></div>

@@ -1,9 +1,7 @@
-/** Saving games, paying coins for them, and removing them. */
+/** Saving and removing games. */
 import { db, bumpDataVersion, type Tx } from "./db";
-import { accountIndex, approvedAccounts } from "./accounts";
-import { gameCoins } from "./economy";
-import { fingerprint, winner as owWinner, type OwMap } from "./ow/parse";
-import { winnerOf, type StoredValMatch } from "./val/match";
+import { fingerprint, type OwMap } from "./ow/parse";
+import { STATS_VERSION, matchesIn, trim, type StoredValMatch } from "./val/match";
 
 type Sql = ReturnType<typeof db> | Tx;
 
@@ -25,7 +23,6 @@ async function saveOwMapTx(m: OwMap, sourceFile: string | null, uploader: string
             ${m.score[0]}, ${m.score[1]}, ${m.complete}, ${m.duration}, ${sql.json(data as never)}, ${sourceFile}, ${uploader})
     on conflict (fingerprint) do nothing returning id`;
   if (!rows.length) return "duplicate";
-  await payOwMap(rows[0].id, sql);
   await bumpDataVersion(sql);
   return "added";
 }
@@ -43,8 +40,11 @@ export async function saveValMatch(m: StoredValMatch, uploader: string | null, s
   return inTx(sql, (tx) => saveValMatchTx(m, uploader, tx, raw));
 }
 
+/** What val_matches.data holds. API games carry the stats version they were read with. */
+const storedData = (m: StoredValMatch) => ({ server: m.server, players: m.players, ...(m.source === "henrikdev" ? { stats: STATS_VERSION } : {}) });
+
 async function saveValMatchTx(m: StoredValMatch, uploader: string | null, sql: Sql, raw?: unknown): Promise<"added" | "duplicate"> {
-  const data = { server: m.server, players: m.players };
+  const data = storedData(m);
   const rows = await sql`
     insert into val_matches (id, played_at, map_name, score_blue, score_red, length_ms, source, data, uploaded_by)
     values (${m.id}, ${m.playedAt}, ${m.mapName}, ${m.score[0]}, ${m.score[1]}, ${m.lengthMs}, ${m.source},
@@ -54,9 +54,16 @@ async function saveValMatchTx(m: StoredValMatch, uploader: string | null, sql: S
     // Also for duplicates: games imported before raw data was kept get it the next time they're seen.
     await sql`insert into val_match_raw (id, raw) values (${m.id}, ${sql.json(raw as never)}) on conflict (id) do nothing`;
   }
-  if (!rows.length) return "duplicate";
+  if (!rows.length) {
+    // Seen again with its API data: bring older stored stats up to date.
+    if (raw && m.source === "henrikdev") {
+      const updated = await sql`update val_matches set data = ${sql.json(data as never)}
+                                where id = ${m.id} and coalesce((data->>'stats')::int, 1) < ${STATS_VERSION} returning id`;
+      if (updated.length) await bumpDataVersion(sql);
+    }
+    return "duplicate";
+  }
   await learnPuuids(m, sql);
-  await payValMatch(m.id, sql);
   await bumpDataVersion(sql);
   return "added";
 }
@@ -71,48 +78,30 @@ async function learnPuuids(m: StoredValMatch, sql: Sql) {
   }
 }
 
-async function pay(sql: Sql, playerId: string, ref: string, result: "win" | "loss" | "draw", label: string) {
-  await sql`insert into ledger (player_id, kind, amount, ref, note)
-            values (${playerId}, 'game', ${gameCoins(result)}, ${ref}, ${label})
-            on conflict (player_id, ref) where kind = 'game' do nothing`;
-}
-
-type Index = ReturnType<typeof accountIndex>;
-
-export async function payOwMap(id: string, sql: Sql = db(), index?: Index) {
-  const [row] = await sql`select * from ow_maps where id = ${id}`;
-  if (!row || !row.complete) return; // unfinished maps don't pay
-  index ??= accountIndex(await approvedAccounts(sql));
-  const w = owWinner([row.score1, row.score2]);
-  for (const p of row.data.players as { name: string; team: 1 | 2 }[]) {
-    const member = index.ow(p.name);
-    if (member) await pay(sql, member, `ow:${id}`, w === 0 ? "draw" : w === p.team ? "win" : "loss", `Overwatch, ${row.map_name}`);
+/**
+ * Re-read stored games from their saved API response when trim() has learnt to
+ * read more since they were imported (STATS_VERSION), so past weeks get new
+ * stats such as plants. A few hundred games at most; cheap when nothing is due.
+ */
+export async function restatFromRaw(sql: Sql = db(), limit = 200): Promise<number> {
+  const rows = await sql`
+    select r.id, r.raw from val_match_raw r join val_matches m on m.id = r.id
+    where coalesce((m.data->>'stats')::int, 1) < ${STATS_VERSION} limit ${limit}`;
+  let n = 0;
+  for (const r of rows) {
+    const [raw] = matchesIn(r.raw);
+    if (!raw) continue;
+    const m = trim(raw);
+    if (m.id !== r.id) continue;
+    await sql`update val_matches set data = ${sql.json(storedData(m) as never)} where id = ${r.id}`;
+    n++;
   }
+  if (n) await bumpDataVersion(sql);
+  return n;
 }
 
-export async function payValMatch(id: string, sql: Sql = db(), index?: Index) {
-  const [row] = await sql`select * from val_matches where id = ${id}`;
-  if (!row) return;
-  index ??= accountIndex(await approvedAccounts(sql));
-  const w = winnerOf([row.score_blue, row.score_red]);
-  for (const p of row.data.players as { puuid: string; name: string; tag: string; team: "Blue" | "Red" }[]) {
-    const member = index.val(p.puuid, p.name, p.tag);
-    const team = p.team === "Blue" ? 1 : 2;
-    if (member) await pay(sql, member, `val:${id}`, w === 0 ? "draw" : w === team ? "win" : "loss", `Valorant, ${row.map_name}`);
-  }
-}
-
-/** After a link is approved: pay for every earlier game on that account. */
-export async function backfillCoins(sql: Sql = db()) {
-  const index = accountIndex(await approvedAccounts(sql));
-  for (const r of await sql`select id from ow_maps where complete`) await payOwMap(r.id, sql, index);
-  for (const r of await sql`select id from val_matches`) await payValMatch(r.id, sql, index);
-}
-
-/** Remove a game and take back the coins it paid. */
+/** Remove a game. */
 export async function deleteGame(game: "overwatch" | "valorant", id: string, sql: Sql = db()) {
-  const ref = game === "overwatch" ? `ow:${id}` : `val:${id}`;
-  await sql`delete from ledger where kind = 'game' and ref = ${ref}`;
   if (game === "overwatch") await sql`delete from ow_maps where id = ${id}`;
   else await sql`delete from val_matches where id = ${id}`;
   await bumpDataVersion(sql);

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { resetDb } from "./db";
+import { getSite } from "@/lib/season";
 
 const AGENTS = ["Jett", "Omen", "Sova", "Killjoy", "Sage"];
 
@@ -64,9 +65,7 @@ describe("members, links and the Valorant import", () => {
     // The whole API response is kept for later stats.
     const [raw] = await sql`select raw->'metadata'->>'match_id' as id from val_match_raw`;
     expect(raw.id).toBe("inhouse");
-    // The three members were paid, and their account ids learned.
-    const paid = await sql`select p.display_name, l.amount from ledger l join players p on p.id = l.player_id where l.kind = 'game' order by 1`;
-    expect(paid.map((r) => r.display_name)).toEqual(["Aoife", "Cian", "Saoirse"]);
+    // The three members' account ids were learned.
     const [{ n }] = await sql`select count(*)::int as n from game_accounts where puuid is not null`;
     expect(n).toBe(3);
     // A second batch straight away has nobody left to check.
@@ -88,16 +87,15 @@ describe("members, links and the Valorant import", () => {
 
   it("merges a roster entry into the member who signs in and claims the account", async () => {
     const { requestLink, approveLink } = await import("@/lib/members");
-    const { balance } = await import("@/lib/shop");
     const [roster] = await sql`select id from players where display_name = 'Aoife'`;
-    const before = await balance(roster.id);
-    expect(before).toBeGreaterThan(0);
+    const gamesBefore = [...(await getSite()).val.players.values()].find((p) => p.person.name === "Aoife")!.apps.length;
     const [me] = await sql`insert into players (display_name, slug, auth_id) values ('Aoife D', 'aoife-d', gen_random_uuid()) returning id`;
     await requestLink(me.id, "valorant", "aoife#euw");
     const [req] = await sql`select id from game_accounts where player_id = ${me.id}`;
     await approveLink(req.id, admin);
     expect(await sql`select 1 from players where id = ${roster.id}`).toHaveLength(0);
-    expect(await balance(me.id)).toBe(before);
+    const merged = [...(await getSite()).val.players.values()].find((p) => p.person.key === me.id)!;
+    expect(merged.apps).toHaveLength(gamesBefore);
     const [acct] = await sql`select puuid from game_accounts where player_id = ${me.id} and status = 'approved'`;
     expect(acct.puuid).toBe("id-Aoife-EUW");
   });
@@ -111,7 +109,6 @@ describe("members, links and the Valorant import", () => {
 
   it("links from Discord: approved at once, merging an unclaimed roster entry, never taking a Discord member's account", async () => {
     const { linkFromDiscord, playerForDiscord, addRosterMember } = await import("@/lib/members");
-    const { balance } = await import("@/lib/shop");
     await addRosterMember("Ronan", [], ["Ronan#EUW"], admin);
     const [roster] = await sql`select id from players where display_name = 'Ronan'`;
     const ronan = (await playerForDiscord({ id: "111", name: "ronan" }, true))!;
@@ -127,15 +124,13 @@ describe("members, links and the Valorant import", () => {
     const { requestLink } = await import("@/lib/members");
     const [webUser] = await sql`insert into players (display_name, slug, auth_id) values ('Web', 'web', gen_random_uuid()) returning id`;
     await expect(requestLink(webUser.id, "valorant", "Ronan2#EUW")).rejects.toThrow("already linked");
-    expect(await balance(ronan.id)).toBeGreaterThanOrEqual(0);
   });
 
-  it("takes the coins back when a game is removed", async () => {
+  it("removes a game, and its saved API data with it", async () => {
     const { deleteGame } = await import("@/lib/ingest");
-    const [{ n: before }] = await sql`select count(*)::int as n from ledger where ref = 'val:inhouse'`;
-    expect(before).toBeGreaterThan(0);
+    expect(await sql`select 1 from val_match_raw where id = 'inhouse'`).toHaveLength(1);
     await deleteGame("valorant", "inhouse");
-    const [{ n }] = await sql`select count(*)::int as n from ledger where ref = 'val:inhouse'`;
-    expect(n).toBe(0);
+    expect(await sql`select 1 from val_matches where id = 'inhouse'`).toHaveLength(0);
+    expect(await sql`select 1 from val_match_raw where id = 'inhouse'`).toHaveLength(0);
   });
 });

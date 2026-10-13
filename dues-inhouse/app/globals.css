@@ -14,11 +14,6 @@
   --down: #b03a3a;
   --focus: #3870b8;
   --gold: #b7791f;
-  --r-common: #3f9d5a;
-  --r-rare: #2f6fdb;
-  --r-epic: #8b4fd8;
-  --r-legendary: #e0533d;
-  --r-ultimate: #c99a06;
   --display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --body: "Barlow", system-ui, sans-serif;
   color-scheme: light dark;
@@ -39,11 +34,6 @@
     --down: #f08a8a;
     --focus: #7aa7ff;
     --gold: #f2c14e;
-    --r-common: #5cc77f;
-    --r-rare: #6c9ff2;
-    --r-epic: #b48af0;
-    --r-legendary: #f2846f;
-    --r-ultimate: #f2d14e;
   }
 }
 * { box-sizing: border-box; }
@@ -246,8 +236,6 @@ code { font-size: 0.9em; background: var(--surface); border: 1px solid var(--lin
 /* ---------- DUES Inhouses additions ---------- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; padding-top: 16px; padding-bottom: 12px; }
 .userbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.coins { display: inline-flex; align-items: center; gap: 6px; font: 700 1.05rem var(--display); text-decoration: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
-.coins .crest { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6, transparent 40%), var(--gold); border: 2px solid color-mix(in srgb, var(--gold) 60%, #000); }
 .avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: var(--brand-soft); display: inline-grid; place-items: center; font: 700 0.95rem var(--display); color: var(--ink); overflow: hidden; flex-shrink: 0; }
 .avatar.lg { width: 84px; height: 84px; font-size: 2rem; border: 4px solid var(--surface); }
 .btn { font: 600 0.95rem var(--body); padding: 8px 16px; border-radius: 6px; border: 1px solid var(--ink); background: var(--ink); color: var(--surface); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
@@ -277,34 +265,9 @@ input[type=text], input[type=number], input[type=datetime-local], input[type=url
 .pill.approved { border-color: var(--up); color: var(--up); }
 .pill.rejected { border-color: var(--down); color: var(--down); }
 
-/* Banners: art fills a 4:1 strip; placeholders use the rarity colour and the crest. */
-.banner-art { position: relative; aspect-ratio: 4 / 1; border-radius: 6px; overflow: hidden; background: var(--brand-soft); isolation: isolate; }
-.banner-art img, .banner-art video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.banner-art.placeholder { background:
-  radial-gradient(120% 140% at 85% 20%, color-mix(in srgb, var(--c, var(--r-common)) 70%, #fff) 0, transparent 45%),
-  repeating-linear-gradient(135deg, color-mix(in srgb, var(--c, var(--r-common)) 92%, #000) 0 14px, color-mix(in srgb, var(--c, var(--r-common)) 80%, #000) 14px 28px); }
-.banner-card .ph-name, .reveal-card .ph-name { display: none; }
-.banner-art.placeholder::after { content: ""; position: absolute; right: 6%; top: 50%; width: 22%; aspect-ratio: 1; transform: translateY(-50%); background: url("/logo.png") center / contain no-repeat; opacity: 0.35; mix-blend-mode: luminosity; }
-.banner-art .ph-name { position: absolute; left: 5%; bottom: 14%; font: 700 clamp(0.9rem, 2.4vw, 1.6rem)/1 var(--display); color: #fff; text-shadow: 0 1px 6px #0006; z-index: 1; }
-.rarity-common { --c: var(--r-common); }
-.rarity-rare { --c: var(--r-rare); }
-.rarity-epic { --c: var(--r-epic); }
-.rarity-legendary { --c: var(--r-legendary); }
-.rarity-ultimate { --c: var(--r-ultimate); }
-.rarity-tag { font: 700 0.75rem var(--body); text-transform: uppercase; letter-spacing: 0.06em; color: var(--c); }
-.banner-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: grid; }
-.banner-card .banner-art { border-radius: 0; }
-.banner-card .meta { padding: 10px 12px; display: grid; gap: 4px; }
-.banner-card .meta strong { font-weight: 600; }
-.banner-card.locked .banner-art { filter: grayscale(1) brightness(0.6); }
-.banner-card.equipped { outline: 3px solid var(--brand); }
-
-/* Profile header with the equipped banner behind it */
-.profile-banner { position: relative; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
-.profile-banner .banner-art { aspect-ratio: 4 / 1; min-height: 140px; border-radius: 0; }
-.profile-banner .who { position: absolute; left: 16px; bottom: 14px; display: flex; align-items: end; gap: 14px; z-index: 2; }
-.profile-banner .who h1 { color: #fff; text-shadow: 0 2px 10px #0008; margin: 0; }
-.profile-banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, #0009); z-index: 1; pointer-events: none; }
+/* Profile header: Discord picture and name */
+.profile-head { display: flex; align-items: center; gap: 16px; margin: 4px 0 14px; }
+.profile-head h1 { margin: 0; }
 .note { position: relative; display: inline-block; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px 12px; margin: 0 0 14px; color: var(--ink-2); font-style: italic; }
 .level { display: inline-grid; place-items: center; min-width: 2.3em; height: 2.3em; padding: 0 6px; border-radius: 8px; font: 700 0.95rem/1 var(--display); color: #fff; background: var(--lv, #6b7a90); border: 2px solid color-mix(in srgb, var(--lv, #6b7a90) 60%, #fff); }
 .level.t1 { --lv: #6b7a90; } .level.t2 { --lv: #3f9d5a; } .level.t3 { --lv: #2f6fdb; } .level.t4 { --lv: #8b4fd8; } .level.t5 { --lv: #e0533d; } .level.t6 { --lv: #c99a06; }
@@ -322,25 +285,6 @@ input[type=text], input[type=number], input[type=datetime-local], input[type=url
 .record-card li .d { grid-column: 2 / -1; color: var(--muted); font-size: 0.85rem; margin-top: -4px; }
 .record-card li:first-child .v { font-size: 1.5rem; color: var(--gold); }
 
-/* Shop */
-.shop-head { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.featured .banner-art { aspect-ratio: 4 / 1.3; }
-.rates { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.rates li { display: flex; justify-content: space-between; gap: 10px; }
-.roll-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
-.reveal { display: grid; gap: 12px; }
-.reveal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-.reveal-card { perspective: 900px; }
-.reveal-card .inner { position: relative; transition: transform 0.6s cubic-bezier(.2,.8,.2,1); transform-style: preserve-3d; }
-.reveal-card .face, .reveal-card .back { backface-visibility: hidden; border-radius: 8px; }
-.reveal-card .back { position: absolute; inset: 0; display: grid; place-items: center; background: repeating-linear-gradient(135deg, var(--ink) 0 10px, color-mix(in srgb, var(--ink) 85%, var(--brand)) 10px 20px); transform: rotateY(180deg); color: var(--surface); font: 700 1.4rem var(--display); }
-.reveal-card.hidden .inner { transform: rotateY(180deg); }
-.reveal-card .face { border: 2px solid var(--c, var(--line)); background: var(--surface); overflow: hidden; }
-.reveal-card.glow .face { animation: glow 1.2s ease-out 1; box-shadow: 0 0 22px -2px var(--c); }
-@keyframes glow { from { box-shadow: 0 0 0 0 var(--c); } 50% { box-shadow: 0 0 40px 6px var(--c); } }
-.reveal-card .label { padding: 8px 10px; display: grid; gap: 2px; }
-.reveal-card .dup { color: var(--muted); font-size: 0.85rem; }
-
 .admin-nav { display: flex; gap: 6px 14px; flex-wrap: wrap; margin-bottom: 20px; }
 .admin-nav a { text-decoration: none; font-weight: 600; color: var(--ink-2); border-bottom: 2px solid transparent; padding: 4px 0; }
 .admin-nav a[aria-current="page"] { color: var(--ink); border-color: var(--brand); }
@@ -350,29 +294,21 @@ input[type=text], input[type=number], input[type=datetime-local], input[type=url
 .results .bad { color: var(--down); }
 
 @media (max-width: 720px) {
-  .shop-head { grid-template-columns: 1fr; }
-  .profile-banner .banner-art { min-height: 120px; }
   .avatar.lg { width: 60px; height: 60px; }
 }
-@media (prefers-reduced-motion: reduce) { .reveal-card .inner { transition: none; } .reveal-card.glow .face { animation: none; } }
 .mini-ladder { list-style: none; padding: 0; margin: 0 0 10px; display: grid; gap: 8px; }
 .mini-ladder li { display: flex; align-items: center; gap: 8px; }
 .mini-ladder strong { margin-left: auto; font: 700 1.2rem var(--display); }
-.featured-link { display: block; text-decoration: none; }
 td.name .level { margin-right: 6px; font-size: 0.8rem; min-width: 2em; height: 2em; }
 .dropzone { border-style: dashed; border-width: 2px; text-align: center; padding: 28px 16px; }
 .dropzone.over { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--surface)); }
 .acct { display: inline-flex; align-items: center; gap: 2px; margin-right: 10px; white-space: nowrap; }
 .link-btn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
 .link-btn:hover { color: var(--down); }
-.admin-banners { display: grid; gap: 10px; margin-top: 12px; }
-.admin-banners .card, section > details.card { padding: 10px 14px; }
+section > details.card { padding: 10px 14px; }
 details.card { margin-bottom: 10px; }
 details.card > summary { cursor: pointer; }
-.banner-summary { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; list-style: none; }
-.banner-summary::-webkit-details-marker { display: none; }
 .admin-form { margin-top: 12px; }
 .checks { gap: 16px; margin-bottom: 14px; }
 .checks label { display: inline-flex; gap: 6px; align-items: center; }
-@media (max-width: 720px) { .banner-summary { grid-template-columns: 1fr; } }
 .figures { margin-bottom: 28px; }

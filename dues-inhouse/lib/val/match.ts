@@ -17,6 +17,7 @@ export interface ValLine {
   legshots: number | null;
   damage: number | null;
   first_bloods: number | null;
+  plants?: number | null; // spike plants; missing from games stored before plants were counted
 }
 
 /** What is stored for each game (val_matches row + data). */
@@ -77,13 +78,45 @@ export function isCustomGame(raw: ApiMatch, minPlayers: number): [boolean, strin
 }
 
 /** Keep what the site uses from an API match (about 3% of its size). */
+/**
+ * Bump when trim() starts reading something new from the API's data: stored
+ * games with a lower number are re-read from their saved API response
+ * (val_match_raw) by restatFromRaw, so past weeks get the new stats too.
+ */
+export const STATS_VERSION = 2;
+
+/** First bloods: the earliest kill of each round in the kill feed (v4 has no per-round field for it). */
+function firstBloods(raw: ApiMatch): Map<string, number> | null {
+  const kills: any[] = raw.kills ?? [];
+  if (!kills.length) return null;
+  const earliest = new Map<number, [number, string]>();
+  for (const k of kills) {
+    const rnd = k?.round, at = k?.time_in_round_in_ms, who = k?.killer?.puuid;
+    if (rnd == null || at == null || !who) continue;
+    const seen = earliest.get(rnd);
+    if (!seen || at < seen[0]) earliest.set(rnd, [at, who]);
+  }
+  const out = new Map<string, number>();
+  for (const [, who] of earliest.values()) out.set(who, (out.get(who) ?? 0) + 1);
+  return out;
+}
+
+/** Spike plants, from who planted in each round. */
+function plants(raw: ApiMatch): Map<string, number> | null {
+  const rounds: any[] = raw.rounds ?? [];
+  if (!rounds.length) return null;
+  const out = new Map<string, number>();
+  for (const r of rounds) {
+    const who = r?.plant?.player?.puuid;
+    if (who) out.set(who, (out.get(who) ?? 0) + 1);
+  }
+  return out;
+}
+
 export function trim(raw: ApiMatch): StoredValMatch {
   const md = raw.metadata;
-  const first = new Map<string, number>();
-  for (const r of raw.rounds ?? []) {
-    const id = r?.first_blood?.puuid;
-    if (id) first.set(id, (first.get(id) ?? 0) + 1);
-  }
+  const first = firstBloods(raw);
+  const planted = plants(raw);
   const won = Object.fromEntries((raw.teams ?? []).map((t: any) => [t.team_id, t.rounds?.won ?? 0]));
   const players: ValLine[] = (raw.players ?? []).map((p: any) => {
     const st = p.stats ?? {};
@@ -91,7 +124,8 @@ export function trim(raw: ApiMatch): StoredValMatch {
       puuid: p.puuid ?? "", name: p.name ?? "", tag: p.tag ?? "", team: p.team_id,
       agent: p.agent?.name || "Unknown", score: st.score ?? 0, kills: st.kills ?? 0, deaths: st.deaths ?? 0,
       assists: st.assists ?? 0, headshots: st.headshots ?? null, bodyshots: st.bodyshots ?? null,
-      legshots: st.legshots ?? null, damage: st.damage?.dealt ?? null, first_bloods: first.get(p.puuid) ?? 0,
+      legshots: st.legshots ?? null, damage: st.damage?.dealt ?? null,
+      first_bloods: first ? first.get(p.puuid) ?? 0 : null, plants: planted ? planted.get(p.puuid) ?? 0 : null,
     };
   });
   return {
@@ -111,7 +145,7 @@ export function fromOvertimeFile(data: any): StoredValMatch {
       puuid: p.puuid, name: p.name, tag: p.tag ?? "", team: p.team, agent: p.agent, score: p.score,
       kills: p.kills, deaths: p.deaths, assists: p.assists, headshots: p.headshots ?? null,
       bodyshots: p.bodyshots ?? null, legshots: p.legshots ?? null, damage: p.damage ?? null,
-      first_bloods: p.first_bloods ?? null,
+      first_bloods: p.first_bloods ?? null, plants: p.plants ?? null,
     })),
   };
 }

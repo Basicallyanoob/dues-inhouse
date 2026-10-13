@@ -22,5 +22,4 @@ fi
 psql -h /tmp -p "$PORT" -U postgres -tc "select 1 from pg_database where datname = 'dues'" | grep -q 1 \
   || psql -h /tmp -p "$PORT" -U postgres -c "create database dues" >/dev/null
 PGOPTIONS="-c client_min_messages=warning" psql -h /tmp -p "$PORT" -U postgres -d dues -q -f supabase/schema.sql >/dev/null
-PGOPTIONS="-c client_min_messages=warning" psql -h /tmp -p "$PORT" -U postgres -d dues -q -f supabase/seed.sql >/dev/null
 echo "DATABASE_URL=postgres://postgres@localhost:$PORT/dues"

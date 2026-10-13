@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { levelTier } from "@/lib/economy";
+import { levelTier } from "@/lib/levels";
 import type { Person } from "@/lib/season";
 import { clock } from "@/lib/time";
 

@@ -1,6 +1,16 @@
 import postgres from "postgres";
 
-/** One connection pool per server instance. Supabase's pooler needs prepare: false. */
+/**
+ * One connection pool per server instance.
+ *
+ * On Supabase this connects through the transaction pooler (port 6543), which
+ * suits Vercel's short-lived servers but can hand a pipelined query another
+ * query's rows. So, away from localhost, each connection sends one query at a
+ * time (max_pipeline 0, a real postgres.js option its types leave out). The
+ * driver's own transactions refuse to start in that mode (UNSAFE_TRANSACTION),
+ * so `begin` is replaced with one that reserves a connection and runs
+ * BEGIN/COMMIT on it itself. DATABASE_SERIAL=1 turns this on locally, for tests.
+ */
 const globalForDb = globalThis as unknown as { sql?: postgres.Sql };
 
 function connect(): postgres.Sql {
@@ -11,16 +21,36 @@ function connect(): postgres.Sql {
     console.warn("DATABASE_URL looks like Supabase's direct connection. On Vercel use the Transaction pooler (port 6543).");
   }
   const local = /localhost|127\.0\.0\.1/.test(url);
-  const options = {
+  const serial = !local || process.env.DATABASE_SERIAL === "1";
+  const sql = postgres(url, {
     max: Number(process.env.DATABASE_POOL ?? (local ? 5 : 3)),
     prepare: false,
     idle_timeout: 20,
-    ssl: local ? false : ("require" as const),
-    // Supabase's transaction pooler can hand a pipelined query another query's rows: send one at a time.
-    // max_pipeline is a real postgres.js option that its types leave out; 0 means no pipelining.
-    max_pipeline: local ? 100 : 0,
-  };
-  return postgres(url, options as postgres.Options<{}>);
+    ssl: local ? false : "require",
+    ...(serial ? { max_pipeline: 0 } : {}),
+  } as postgres.Options<{}>);
+  if (serial) sql.begin = ((a: unknown, b?: unknown) => serialBegin(sql, a, b)) as typeof sql.begin;
+  return sql;
+}
+
+async function serialBegin(sql: postgres.Sql, a: unknown, b?: unknown): Promise<unknown> {
+  const fn = (typeof a === "function" ? a : b) as (tx: postgres.ReservedSql) => unknown;
+  const mode = typeof a === "string" ? a : "";
+  if (mode && !/^[a-z ]+$/i.test(mode)) throw new Error("Bad transaction mode.");
+  const conn = await sql.reserve();
+  // Nested inTx() calls see no `begin` and run inside this transaction.
+  delete (conn as Partial<postgres.ReservedSql>).begin;
+  try {
+    await conn.unsafe(`begin ${mode}`);
+    const result = await fn(conn);
+    await conn.unsafe("commit");
+    return result;
+  } catch (e) {
+    await conn.unsafe("rollback").catch(() => {});
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
 
 export function db(): postgres.Sql {

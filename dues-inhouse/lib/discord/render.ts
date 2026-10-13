@@ -148,7 +148,7 @@ export async function resultMessage(gameId: number): Promise<MessageBody> {
     const d = deltas?.get(p.person) ?? 0;
     const pf = perf?.get(p.person);
     const r = valRates({ rounds: m.rounds, score: p.score, kills: p.kills, deaths: p.deaths, assists: p.assists, damage: p.damage ?? 0,
-      damage_rounds: p.damage === null ? 0 : m.rounds, headshots: 0, shots: 0, first_bloods: 0, fb_rounds: 0 });
+      damage_rounds: p.damage === null ? 0 : m.rounds, headshots: 0, shots: 0, first_bloods: 0, fb_rounds: 0, plants: 0, plant_games: 0 });
     const person = who.get(p.person) ?? { name: `${p.name}`, discordId: null };
     return `${tag(person)} **${signed(d)}** → ${site.val.book.value(p.person) ?? "—"} · ${p.agent}, ${p.kills}/${p.deaths}/${p.assists}, ${Math.round(r.acs ?? 0)} ACS` +
       (pf ? ` · #${pf.rank} in lobby` : "");

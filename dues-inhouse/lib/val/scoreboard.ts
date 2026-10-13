@@ -1,7 +1,7 @@
 /**
  * One Valorant game typed in from the end-of-game scoreboard, as CSV: a row
  * per player with date, map, team, rounds (won by that team), player (Riot
- * ID), agent, acs, kills, deaths, assists and optionally first_bloods.
+ * ID), agent, acs, kills, deaths, assists and optionally first_bloods and plants.
  */
 import { zonedToUtc } from "../time";
 import { normaliseRiot, type StoredValMatch, type ValLine } from "./match";
@@ -20,6 +20,7 @@ const COLUMNS: Record<string, string[]> = {
   deaths: ["d", "deaths"],
   assists: ["a", "assists"],
   first_bloods: ["fb", "first bloods", "first_bloods", "first kills"],
+  plants: ["plants", "spike plants"],
 };
 const TEAM_WORDS: Record<string, "Blue" | "Red"> = {
   blue: "Blue", a: "Blue", "1": "Blue", "team a": "Blue", defenders: "Blue",
@@ -91,12 +92,13 @@ export function parseScoreboard(fileName: string, text: string): StoredValMatch 
   const players: ValLine[] = pending.map(([r, team, line]) => {
     const rid = get(r, "player");
     const [name, ...tag] = rid.split("#");
-    const fb = get(r, "first_bloods");
+    const fb = get(r, "first_bloods"), pl = get(r, "plants");
     return {
       puuid: `manual:${normaliseRiot(rid)}`, name: name.trim(), tag: tag.join("#").trim(), team,
       agent: get(r, "agent") || "Unknown", score: num(r, "acs", line) * rounds, kills: num(r, "kills", line),
       deaths: num(r, "deaths", line), assists: num(r, "assists", line), headshots: null, bodyshots: null,
       legshots: null, damage: null, first_bloods: /^\d+$/.test(fb) ? Number(fb) : null,
+      plants: /^\d+$/.test(pl) ? Number(pl) : null,
     };
   });
   const stem = fileName.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "");

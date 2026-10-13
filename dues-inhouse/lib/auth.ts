@@ -13,7 +13,6 @@ export interface Viewer {
   slug: string;
   avatarUrl: string | null;
   role: Role;
-  bannerId: number | null;
 }
 
 /** Development only: pretend to be a player without Discord (DEV_LOGIN=1, never in production). */
@@ -32,7 +31,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     if (data.user) [row] = await db()`select * from players where auth_id = ${data.user.id}`;
   }
   if (!row) return null;
-  return { id: row.id, name: row.display_name, slug: row.slug, avatarUrl: row.avatar_url, role: row.role, bannerId: row.banner_id };
+  return { id: row.id, name: row.display_name, slug: row.slug, avatarUrl: row.avatar_url, role: row.role };
 });
 
 export const isOfficer = (v: Viewer | null) => v?.role === "officer" || v?.role === "admin";

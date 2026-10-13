@@ -1,8 +1,8 @@
 import { officerPage } from "@/lib/auth";
 import Link from "next/link";
 import { ConfirmButton } from "@/components/Confirm";
-import { Flash, num } from "@/components/ui";
-import { addMember, changeRole, giveCoins, officerUnlink, uploadRoster } from "../../actions";
+import { Flash } from "@/components/ui";
+import { addMember, changeRole, officerUnlink, uploadRoster } from "../../actions";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -12,7 +12,6 @@ export default async function Members({ searchParams }: { searchParams: Promise<
   const viewer = await getViewer();
   const rows = await db()`
     select p.id, p.display_name, p.slug, p.role, p.auth_id is not null as signed_in,
-      coalesce((select sum(amount) from ledger l where l.player_id = p.id), 0)::int as coins,
       coalesce((select json_agg(json_build_object('id', a.id, 'game', a.game, 'account', a.account) order by a.game, a.account)
                 from game_accounts a where a.player_id = p.id and a.status = 'approved'), '[]') as accounts
     from players p order by p.role = 'member', lower(p.display_name)`;
@@ -42,7 +41,7 @@ export default async function Members({ searchParams }: { searchParams: Promise<
       <section>
         <h2>Everyone</h2>
         <div className="scroll"><table>
-          <thead><tr><th scope="col">Name</th><th scope="col">Accounts</th><th scope="col" className="num">Crests</th><th scope="col">Adjust Crests</th><th scope="col">Role</th></tr></thead>
+          <thead><tr><th scope="col">Name</th><th scope="col">Accounts</th><th scope="col">Role</th></tr></thead>
           <tbody>{rows.map((p) => (
             <tr key={p.id}>
               <td className="name"><Link href={`/players/${p.slug}`}>{p.display_name}</Link>{!p.signed_in && <span className="alias">roster entry, not signed in</span>}</td>
@@ -51,15 +50,6 @@ export default async function Members({ searchParams }: { searchParams: Promise<
                   <form className="inline-form" action={officerUnlink}><input type="hidden" name="id" value={a.id} /><ConfirmButton message={`Unlink ${a.account} from ${p.display_name}?`} className="link-btn">×</ConfirmButton></form>
                 </span>
               ))}</td>
-              <td className="num">{num(p.coins)}</td>
-              <td>
-                <form className="row" action={giveCoins}>
-                  <input type="hidden" name="id" value={p.id} />
-                  <input name="amount" type="number" step={1} placeholder="+500 or -500" style={{ width: "8em" }} aria-label={`Coins for ${p.display_name}`} required />
-                  <input name="note" type="text" placeholder="Why" style={{ width: "10em" }} aria-label="Reason" />
-                  <button className="btn ghost small">Apply</button>
-                </form>
-              </td>
               <td>{isAdmin(viewer) ? (
                 <form className="row" action={changeRole}>
                   <input type="hidden" name="id" value={p.id} />

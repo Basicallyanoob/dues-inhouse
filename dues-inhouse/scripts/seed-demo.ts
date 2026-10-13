@@ -32,7 +32,6 @@ async function main() {
     for (const a of await sql`select id from game_accounts where player_id = ${kestrel.id}`) await approveLink(a.id, admin.id);
     await requestLink(kestrel.id, "valorant", "KestrelAlt#EUW"); // left waiting, to show the queue
   }
-  await sql`insert into ledger (player_id, kind, amount, note) values (${admin.id}, 'admin', 20000, 'Demo coins')`;
   console.log("Done. Sign in as Demo Admin or Kestrel on /login with DEV_LOGIN=1.");
   await sql.end();
 }

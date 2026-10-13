@@ -2,18 +2,15 @@
 /** Form actions. Each checks who is asking, does one thing, and returns to the page with a message. */
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AuthError, DEV_COOKIE, devLogin, requireOfficer, requireViewer, isAdmin, safePath } from "@/lib/auth";
-import { CatalogError, createCode, saveBanner, saveSet } from "@/lib/catalog";
+import { AuthError, DEV_COOKIE, devLogin, requireOfficer, requireViewer, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteGame } from "@/lib/ingest";
 import {
-  MemberError, addRosterMember, adjustCoins, approveLink, importRoster, rejectLink, removeLink, requestLink, setRole, updateProfile,
+  MemberError, addRosterMember, approveLink, importRoster, rejectLink, removeLink, requestLink, setRole, updateProfile,
 } from "@/lib/members";
-import { ShopError, buy, equip, redeem } from "@/lib/shop";
-import { StorageError } from "@/lib/storage";
 import { isGame } from "@/lib/games";
 
-const KNOWN = [AuthError, MemberError, ShopError, CatalogError, StorageError];
+const KNOWN = [AuthError, MemberError];
 
 function back(path: string, kind: "ok" | "error", message: string): never {
   const sep = path.includes("?") ? "&" : "?";
@@ -60,30 +57,6 @@ export async function saveProfile(f: FormData) {
   });
 }
 
-export async function equipBanner(f: FormData) {
-  const to = str(f, "back");
-  await attempt(safePath(to, "/me"), "Banner equipped.", async () => {
-    const v = await requireViewer();
-    const id = str(f, "banner_id");
-    await equip(v.id, id ? Number(id) : null);
-  });
-}
-
-export async function redeemCode(f: FormData) {
-  await attempt("/me", "", async () => {
-    const v = await requireViewer();
-    return redeem(v.id, str(f, "code"));
-  });
-}
-
-export async function buyBanner(f: FormData) {
-  const set = str(f, "set");
-  await attempt(`/shop${set ? `?set=${encodeURIComponent(set)}` : ""}`, "Bought. It's in your collection.", async () => {
-    const v = await requireViewer();
-    await buy(v.id, int(f, "banner_id"));
-  });
-}
-
 export async function devSignIn(f: FormData) {
   if (!devLogin()) redirect("/login");
   (await cookies()).set(DEV_COOKIE, str(f, "id"), { httpOnly: true, sameSite: "lax", path: "/" });
@@ -93,7 +66,7 @@ export async function devSignIn(f: FormData) {
 // ---------- officers ----------
 
 export async function approve(f: FormData) {
-  await attempt("/admin", "Linked. Their games, and the Crests for them, are on their profile now.", async () => {
+  await attempt("/admin", "Linked. Their games are on their profile now.", async () => {
     const o = await requireOfficer();
     const [mine] = await db()`select 1 from game_accounts where id = ${int(f, "id")} and player_id = ${o.id}`;
     if (mine && !isAdmin(o)) throw new MemberError("Ask another officer to approve your own accounts.");
@@ -145,57 +118,11 @@ export async function changeRole(f: FormData) {
   });
 }
 
-export async function giveCoins(f: FormData) {
-  await attempt("/admin/members", "Coins adjusted.", async () => {
-    const o = await requireOfficer();
-    if (str(f, "id") === o.id && !isAdmin(o)) throw new MemberError("Ask an admin to adjust your own Crests.");
-    await adjustCoins(str(f, "id"), int(f, "amount"), str(f, "note"), o.id);
-  });
-}
-
 export async function removeGame(f: FormData) {
-  await attempt("/admin/games", "Game removed, and the Crests it paid taken back.", async () => {
+  await attempt("/admin/games", "Game removed.", async () => {
     await requireOfficer();
     const game = str(f, "game");
     if (!isGame(game)) throw new MemberError("Unknown game.");
     await deleteGame(game, str(f, "id"));
-  });
-}
-
-export async function saveBannerAction(f: FormData) {
-  await attempt("/admin/banners", "Banner saved.", async () => {
-    await requireOfficer();
-    await saveBanner(f);
-  });
-}
-
-export async function deleteBanner(f: FormData) {
-  await attempt("/admin/banners", "Banner deleted.", async () => {
-    await requireOfficer();
-    const id = int(f, "id");
-    const [{ n }] = await db()`select count(*)::int as n from owned_banners where banner_id = ${id}`;
-    if (n > 0) throw new CatalogError(`${n} member${n === 1 ? " owns" : "s own"} it, so retire it instead (untick Active).`);
-    await db()`delete from banners where id = ${id}`;
-  });
-}
-
-export async function saveSetAction(f: FormData) {
-  await attempt("/admin/banners", "Set saved.", async () => {
-    await requireOfficer();
-    await saveSet(f);
-  });
-}
-
-export async function createCodeAction(f: FormData) {
-  await attempt("/admin/codes", "Code created.", async () => {
-    const o = await requireOfficer();
-    await createCode(f, o.id);
-  });
-}
-
-export async function deleteCode(f: FormData) {
-  await attempt("/admin/codes", "Code deleted.", async () => {
-    await requireOfficer();
-    await db()`delete from promo_codes where code = ${str(f, "code")}`;
   });
 }
