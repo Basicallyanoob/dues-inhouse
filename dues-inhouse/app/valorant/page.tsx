@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Delta, Empty, Level, num, pct, PlayerLink, Tile } from "@/components/ui";
+import { Delta, Empty, Hero, Level, num, pct, PlayerLink, Tile } from "@/components/ui";
 import { CLASS_LABEL } from "@/lib/games";
+import { getViewer } from "@/lib/auth";
 import { getSite } from "@/lib/season";
 import { MIN_MAPS, valBoard, valMatchView } from "@/lib/views";
 import { valTile } from "./tiles";
@@ -24,16 +25,28 @@ export default async function ValorantLadder() {
     );
   }
   const board = valBoard(site);
+  const me = (await getViewer())?.id;
+  const myRank = board.rows.findIndex((r) => r.person.key === me);
+  const myGames = board.unranked.find((r) => r.person.key === me)?.maps;
   const nights = new Set(val.maps.map((m) => m.night)).size;
   const rounds = val.maps.reduce((s, m) => s + m.rounds, 0);
   const recent = [...val.maps].reverse().slice(0, 6).map((m) => valTile(valMatchView(site, m)));
   return (
     <>
-      <section className="intro">
-        <h1>Valorant leaderboard</h1>
-        <p className="lede">{val.maps.length} game{val.maps.length === 1 ? "" : "s"} over {nights} club night{nights === 1 ? "" : "s"}, {val.players.size} players, {num(rounds)} rounds. Ratings update after every game; you need {MIN_MAPS} games to be ranked. ACS is average combat score per round, KPR kills per round, ADR average damage per round, FBPR first bloods (a round&apos;s first kill) per round, and HS% the share of shots that hit the head. Plants is spike plants in total.</p>
-        {val.unknownAgents.size > 0 && <p className="notice">Agents missing from config/agents.yaml: {[...val.unknownAgents].sort().join(", ")}.</p>}
-      </section>
+      <Hero
+        kicker="Valorant weeklies"
+        title="Leaderboard"
+        actions={myRank >= 0 ? <a className="pill secondary" href="#you">You&apos;re #{myRank + 1}. Find your row</a> : undefined}
+        facts={[
+          { label: "Games", value: num(val.maps.length) },
+          { label: "Club nights", value: num(nights) },
+          { label: "Players", value: num(val.players.size) },
+          { label: "Rounds", value: num(rounds) },
+        ]}
+      >
+        {myGames !== undefined && <small>You&apos;ve played {myGames} of the {MIN_MAPS} games you need for a rank.</small>}
+      </Hero>
+      {val.unknownAgents.size > 0 && <p className="notice">Agents missing from config/agents.yaml: {[...val.unknownAgents].sort().join(", ")}.</p>}
       <section aria-label="Leaderboard">
         {board.rows.length ? (
           <div className="scroll">
@@ -53,9 +66,9 @@ export default async function ValorantLadder() {
               </tr></thead>
               <tbody>
                 {board.rows.map((r, i) => (
-                  <tr key={r.person.key}>
+                  <tr key={r.person.key} {...(r.person.key === me ? { id: "you", className: "me" } : {})}>
                     <td className="num rank">{i + 1}</td>
-                    <td className="name"><Level level={r.level} /> <PlayerLink p={r.person} game="valorant" /></td>
+                    <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="valorant" />{r.person.key === me && <span className="you-tag">You</span>}</span></td>
                     <td className="num rating">{num(r.rating)}</td>
                     <td className="num"><Delta v={r.change} /></td>
                     <td className="num">{r.maps}</td><td className="num">{r.record}</td><td className="num">{pct(r.winrate)}</td>
@@ -69,6 +82,7 @@ export default async function ValorantLadder() {
             </table>
           </div>
         ) : <Empty>Nobody has played {MIN_MAPS} games yet.</Empty>}
+        <p className="footnote">ACS is average combat score per round, KPR kills per round, ADR average damage per round, FBPR first bloods (a round&apos;s first kill) per round, and HS% the share of shots that hit the head. Plants is spike plants in total. Everyone starts on 1,000.</p>
         {board.unranked.length > 0 && (
           <p className="unranked">Not ranked yet, fewer than {MIN_MAPS} games:{" "}
             {board.unranked.map((r, i) => <span key={r.person.key}><PlayerLink p={r.person} game="valorant" /> ({r.maps}){i < board.unranked.length - 1 ? ", " : ""}</span>)}

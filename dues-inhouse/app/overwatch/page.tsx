@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Delta, Empty, Level, num, pct, PlayerLink, Tile } from "@/components/ui";
+import { Delta, Empty, Hero, Level, num, pct, PlayerLink, Tile } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/games";
+import { getViewer } from "@/lib/auth";
 import { getSite } from "@/lib/season";
 import { MIN_MAPS, owBoard, owMatchView } from "@/lib/views";
 import { owTile } from "./tiles";
@@ -24,16 +25,28 @@ export default async function OverwatchLadder() {
     );
   }
   const boards = [owBoard(site, null), ...(["tank", "damage", "support"] as const).map((r) => owBoard(site, r))];
+  const me = (await getViewer())?.id;
+  const myRank = boards[0].rows.findIndex((r) => r.person.key === me);
+  const myMaps = boards[0].unranked.find((r) => r.person.key === me)?.maps;
   const nights = new Set(ow.maps.map((m) => m.night)).size;
   const hours = ow.maps.reduce((s, m) => s + m.duration, 0) / 3600;
   const recent = [...ow.maps].reverse().slice(0, 6).map((m) => owTile(owMatchView(site, m)));
   return (
     <>
-      <section className="intro">
-        <h1>Overwatch leaderboard</h1>
-        <p className="lede">{ow.maps.length} maps over {nights} club night{nights === 1 ? "" : "s"}, {ow.players.size} players, {num(hours, 1)} hours of play. Ratings update after every finished map; you need {MIN_MAPS} maps in a role to be ranked in it.</p>
-        {ow.unknownHeroes.size > 0 && <p className="notice">Heroes missing from config/heroes.yaml: {[...ow.unknownHeroes].sort().join(", ")}. Add them so their maps count towards role ratings.</p>}
-      </section>
+      <Hero
+        kicker="Overwatch inhouses"
+        title="Leaderboard"
+        actions={myRank >= 0 ? <a className="pill secondary" href="#you">You&apos;re #{myRank + 1} overall. Find your row</a> : undefined}
+        facts={[
+          { label: "Maps", value: num(ow.maps.length) },
+          { label: "Club nights", value: num(nights) },
+          { label: "Players", value: num(ow.players.size) },
+          { label: "Hours played", value: num(hours, 1) },
+        ]}
+      >
+        {myMaps !== undefined && <small>You&apos;ve played {myMaps} of the {MIN_MAPS} maps you need for an overall rank.</small>}
+      </Hero>
+      {ow.unknownHeroes.size > 0 && <p className="notice">Heroes missing from config/heroes.yaml: {[...ow.unknownHeroes].sort().join(", ")}. Add them so their maps count towards role ratings.</p>}
       <section className="boards" aria-label="Leaderboards by role">
         {boards.map((b, i) => <input key={b.role ?? "overall"} type="radio" name="board" id={`board-${b.role ?? "overall"}`} className="board-toggle" defaultChecked={i === 0} />)}
         <div className="segmented" role="group" aria-label="Role">
@@ -55,9 +68,9 @@ export default async function OverwatchLadder() {
                   </tr></thead>
                   <tbody>
                     {b.rows.map((r, i) => (
-                      <tr key={r.person.key}>
+                      <tr key={r.person.key} {...(r.person.key === me ? { id: b.role ? undefined : "you", className: "me" } : {})}>
                         <td className="num rank">{i + 1}</td>
-                        <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="overwatch" /></span></td>
+                        <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="overwatch" />{r.person.key === me && <span className="you-tag">You</span>}</span></td>
                         <td className="num rating">{num(r.rating)}</td>
                         {!b.role && <td className="num"><Delta v={r.change} /></td>}
                         <td className="num">{r.maps}</td><td className="num">{r.record}</td><td className="num">{pct(r.winrate)}</td>
@@ -77,6 +90,7 @@ export default async function OverwatchLadder() {
             )}
           </div>
         ))}
+        <p className="footnote">Per-10 figures are per ten minutes of play. Everyone starts on 1,000, and each role has its own rating.</p>
       </section>
       <section>
         <h2>Latest maps</h2>

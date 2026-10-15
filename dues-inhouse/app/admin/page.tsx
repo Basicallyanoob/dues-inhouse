@@ -29,7 +29,7 @@ export default async function Requests({ searchParams }: { searchParams: Promise
     <section>
       <Flash ok={flash.ok} error={flash.error} />
       <h2>Account link requests</h2>
-      <p className="lede">Approve a request only if you know the account is theirs (ask in Discord if unsure). Approving joins every game on that account to their profile and pays them for those games.</p>
+      <p className="lede">Approve a request only if you know the account is theirs (ask in Discord if unsure). Approving joins every game on that account to their profile.</p>
       {!pending.length ? <p className="empty">Nothing waiting.</p> : (
         <div className="scroll"><table>
           <thead><tr><th scope="col">Member</th><th scope="col">Game</th><th scope="col">Account</th><th scope="col" className="num">Games already played</th><th scope="col">Asked</th><th scope="col">Decide</th></tr></thead>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Avatar, Delta, Level, num, pct, PlayerLink, RatingChart } from "@/components/ui";
+import { Avatar, Delta, Hero, Level, num, pct, PlayerLink, RatingChart } from "@/components/ui";
 import { db } from "@/lib/db";
 import { CLASS_LABEL, ROLE_LABEL, type OwRole } from "@/lib/games";
 import { getSite, level, type Person } from "@/lib/season";
@@ -30,19 +30,34 @@ export default async function PlayerPage({ params, searchParams }: Props) {
   const avatarUrl = fresh ? fresh.avatar_url : person.avatarUrl;
   const lv = level(site, person.key);
   const aliases = [...person.owNames].filter((n) => n !== person.name);
+  const owV = game === "overwatch" && owP ? owPlayerView(site, owP) : null;
+  const valV = game === "valorant" && valP ? valPlayerView(site, valP) : null;
+  // The kicker says what they mostly play in the game shown.
+  const mainOw = owV && [...owV.roles].sort((a, b) => b.maps - a.maps)[0];
+  const mainVal = valV && [...valV.classes].sort((a, b) => b.share - a.share)[0];
+  const kicker = mainOw ? `${ROLE_LABEL[mainOw.role]} main` : mainVal ? `${mainVal.cls} main` : person.memberId ? "DUES member" : "Guest player";
+  const v = owV ?? valV;
+  const accounts = [...person.linked.overwatch, ...person.linked.valorant];
   return (
     <>
-      <section className="profile-head">
-        <Avatar name={person.name} url={avatarUrl} large />
-        <h1>{person.name}</h1>
-      </section>
-      {note && <p className="note">“{note}”</p>}
-      <p className="aka">
-        <Level level={lv} /> Level {lv}
-        {person.linked.overwatch.length + person.linked.valorant.length > 0 && <> · {[...person.linked.overwatch, ...person.linked.valorant].join(", ")}</>}
-        {aliases.length > 0 && <> · also plays as {aliases.join(", ")}</>}
-        {!person.memberId && <> · not linked to a member yet</>}
-      </p>
+      <Hero
+        title={person.name}
+        kicker={kicker}
+        avatar={<Avatar name={person.name} url={avatarUrl} large />}
+        facts={[
+          ...(v ? [
+            { label: `${owV ? "Overwatch" : "Valorant"} rating`, value: v.rating !== null ? num(v.rating) : "Unrated" },
+            { label: "Record", value: v.record },
+            { label: "Win rate", value: pct(v.winrate) },
+          ] : []),
+          { label: "Level", value: <Level level={lv} /> },
+        ]}
+      >
+        {note && <p className="quote">“{note}”</p>}
+        {accounts.length > 0 && <p>Plays as {accounts.join(", ")}.</p>}
+        {aliases.length > 0 && <p>Also seen in Overwatch as {aliases.join(", ")}.</p>}
+        {!person.memberId && <p>Not linked to a member yet. If this is you, sign in and link this account.</p>}
+      </Hero>
       {(owP && valP) && (
         <nav className="tabs" aria-label="Game">
           <Link href={`/players/${slug}?game=overwatch`} aria-current={game === "overwatch" ? "page" : undefined}>Overwatch</Link>
@@ -50,22 +65,20 @@ export default async function PlayerPage({ params, searchParams }: Props) {
         </nav>
       )}
       {!game && <p className="empty">No games yet. Games appear here once {person.name}&apos;s linked accounts play an inhouse.</p>}
-      {game === "overwatch" && owP && <OwTab site={site} p={owP} />}
-      {game === "valorant" && valP && <ValTab site={site} p={valP} />}
+      {owV && <OwTab v={owV} />}
+      {valV && <ValTab v={valV} />}
     </>
   );
 }
 
-function OwTab({ site, p }: { site: Awaited<ReturnType<typeof getSite>>; p: NonNullable<ReturnType<Awaited<ReturnType<typeof getSite>>["ow"]["players"]["get"]>> }) {
-  const v = owPlayerView(site, p);
+function OwTab({ v }: { v: ReturnType<typeof owPlayerView> }) {
   return (
     <>
-      <dl className="figures">
-        <div><dt>Overwatch rating</dt><dd>{v.rating !== null ? num(v.rating) : "Unrated"}</dd></div>
-        <div><dt>Record</dt><dd>{v.record}</dd></div>
-        <div><dt>Win rate</dt><dd>{pct(v.winrate)}</dd></div>
-        {v.roles.map((r) => <div key={r.role}><dt>{ROLE_LABEL[r.role]} rating</dt><dd>{num(r.rating)}<span className="sub">{r.maps} maps</span></dd></div>)}
-      </dl>
+      {v.roles.length > 0 && (
+        <dl className="figures">
+          {v.roles.map((r) => <div key={r.role}><dt>{ROLE_LABEL[r.role]} rating</dt><dd>{num(r.rating)}<span className="sub">{r.maps} maps</span></dd></div>)}
+        </dl>
+      )}
       {v.chart.length > 0 && <section><h2>Rating after each map</h2><RatingChart points={v.chart} unit="finished map" hrefFor={(id) => `/overwatch/matches/${encodeURIComponent(id)}`} /></section>}
       <section>
         <h2>Heroes</h2>
@@ -98,18 +111,17 @@ function OwTab({ site, p }: { site: Awaited<ReturnType<typeof getSite>>; p: NonN
   );
 }
 
-function ValTab({ site, p }: { site: Awaited<ReturnType<typeof getSite>>; p: NonNullable<ReturnType<Awaited<ReturnType<typeof getSite>>["val"]["players"]["get"]>> }) {
-  const v = valPlayerView(site, p);
+function ValTab({ v }: { v: ReturnType<typeof valPlayerView> }) {
   return (
     <>
       <dl className="figures">
-        <div><dt>Valorant rating</dt><dd>{v.rating !== null ? num(v.rating) : "Unrated"}</dd></div>
-        <div><dt>Record</dt><dd>{v.record}</dd></div>
-        <div><dt>Win rate</dt><dd>{pct(v.winrate)}</dd></div>
         <div><dt>ACS</dt><dd>{num(v.r.acs)}</dd></div>
-        <div><dt>K/D</dt><dd>{num(v.r.kd, 2)}</dd></div>
+        <div><dt>KPR</dt><dd>{num(v.r.kpr, 2)}</dd></div>
         {v.r.adr !== null && <div><dt>ADR</dt><dd>{num(v.r.adr)}</dd></div>}
+        {v.r.fbpr !== null && <div><dt>First bloods / round</dt><dd>{num(v.r.fbpr, 2)}</dd></div>}
         {v.r.hs !== null && <div><dt>Headshots</dt><dd>{pct(v.r.hs)}</dd></div>}
+        {v.r.plants !== null && <div><dt>Plants</dt><dd>{num(v.r.plants)}</dd></div>}
+        <div><dt>K/D</dt><dd>{num(v.r.kd, 2)}</dd></div>
       </dl>
       {v.chart.length > 0 && <section><h2>Rating after each game</h2><RatingChart points={v.chart} unit="game" hrefFor={(id) => `/valorant/matches/${encodeURIComponent(id)}`} /></section>}
       <section>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Delta, mmss, num, pct, PlayerLink } from "@/components/ui";
+import { Delta, Hero, mmss, num, pct, PlayerLink } from "@/components/ui";
 import { getSite } from "@/lib/season";
 import { clock, dayLabel } from "@/lib/time";
 import { owMatchView } from "@/lib/views";
@@ -19,19 +19,21 @@ export default async function OverwatchMatch({ params }: { params: Promise<{ id:
   const v = owMatchView(site, m);
   return (
     <>
-      <section className="match-head">
-        <p className="crumb"><Link href="/overwatch/matches">Matches</Link> / {dayLabel(m.playedAt)}, {clock(m.playedAt)}</p>
-        <h1>{m.mapName}</h1>
+      <Hero
+        crumb={<><Link href="/overwatch/matches">Matches</Link> / {m.mapName}</>}
+        kicker={<>Overwatch, {dayLabel(m.playedAt)} at {clock(m.playedAt)}</>}
+        title={m.mapName}
+      >
         <div className="scoreline" aria-label="Final score">
           <div className={`side t1${v.teams[0].won ? " won" : ""}`}><span className="team">{m.teamNames[0]}</span><span className="score">{m.score[0]}</span></div>
           <div className={`side t2${v.teams[1].won ? " won" : ""}`}><span className="score">{m.score[1]}</span><span className="team">{m.teamNames[1]}</span></div>
         </div>
-        <p className="lede">
+        <p className="match-lede">
           {m.mapType}, {mmss(m.duration)} of match time.{" "}
           {!m.complete ? "This log stops before the end of the match, so it is not rated." : m.winner === 0 ? "A draw." : `${m.teamNames[m.winner - 1]} won.`}{" "}
           {v.prediction !== null && <>Before the map the ratings gave {m.teamNames[0]} a {pct(v.prediction)} chance{v.upset ? ", so this was an upset" : ""}.</>}
         </p>
-      </section>
+      </Hero>
       {v.teams.map((t) => (
         <section key={t.no} className={`team-block t${t.no}`}>
           <h2>{t.name}{t.won ? ", winners" : ""}</h2>

@@ -171,7 +171,7 @@ To check the HenrikDev API against a real account (with `HENRIKDEV_API_KEY` in `
 - [ScrimTime](https://workshop.codes/FYHQV) by Caldoran writes the Overwatch logs.
 - [HenrikDev API](https://docs.henrikdev.xyz) for Valorant match history.
 - [openskill.js](https://github.com/philihp/openskill.js) for the rating model.
-- Barlow and Barlow Condensed by Jeremy Tribby, under the SIL Open Font License (`public/fonts/OFL-Barlow.txt`).
+- Inter by Rasmus Andersson, under the SIL Open Font License (`public/fonts/OFL-Inter.txt`). Apple devices show their own system font instead.
 - The DUES crest belongs to the Dublin University Esports Society.
 
 Overwatch is a trademark of Blizzard Entertainment. This site isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, Valorant and all associated properties are trademarks or registered trademarks of Riot Games, Inc. Neither company is affiliated with this site.

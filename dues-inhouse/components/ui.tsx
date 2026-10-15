@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { levelTier } from "@/lib/levels";
 import type { Person } from "@/lib/season";
 import { clock } from "@/lib/time";
@@ -100,4 +100,41 @@ export function Flash({ ok, error }: { ok?: string | null; error?: string | null
   if (error) return <p className="flash error" role="alert">{error}</p>;
   if (ok) return <p className="flash" role="status">{ok}</p>;
   return null;
+}
+
+export interface Fact { label: string; value: ReactNode; sub?: ReactNode }
+
+/**
+ * The page opener: a small eyebrow line, a large headline, a short subhead,
+ * optional buttons, and a row of big figures with captions.
+ */
+export function Hero({ title, kicker, facts = [], children, crumb, avatar, actions, dark }: {
+  title: string;
+  kicker?: ReactNode;
+  facts?: Fact[];
+  children?: ReactNode;
+  crumb?: ReactNode;
+  avatar?: ReactNode;
+  actions?: ReactNode;
+  dark?: boolean;
+}) {
+  return (
+    <section className={`hero${dark ? " dark" : ""}`} style={{ "--len": Math.max(6, title.length) } as CSSProperties}>
+      {crumb && <p className="crumb">{crumb}</p>}
+      <div className="hero-copy" data-reveal>
+        {avatar && <div className="hero-avatar">{avatar}</div>}
+        {kicker && <p className="eyebrow">{kicker}</p>}
+        <h1 className="headline">{title}</h1>
+        {children && <div className="subhead">{children}</div>}
+        {actions && <div className="actions">{actions}</div>}
+      </div>
+      {facts.length > 0 && (
+        <dl className="stats" data-reveal>
+          {facts.map((f) => (
+            <div key={f.label} className="stat"><dt>{f.label}{f.sub && <small>{f.sub}</small>}</dt><dd>{f.value}</dd></div>
+          ))}
+        </dl>
+      )}
+    </section>
+  );
 }

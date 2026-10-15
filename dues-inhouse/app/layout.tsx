@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { Avatar } from "@/components/ui";
-import { GameSwitch, SiteNav } from "@/components/Nav";
+import { Avatar, num } from "@/components/ui";
+import { GlobalNav, LocalNav, type Findable } from "@/components/Nav";
+import { Reveal } from "@/components/Reveal";
 import { getViewer, isOfficer } from "@/lib/auth";
+import { getSite } from "@/lib/season";
+import { owBoard, valBoard } from "@/lib/views";
 
 export const metadata: Metadata = {
   title: { default: "DUES Inhouses", template: "%s · DUES Inhouses" },
@@ -14,6 +17,25 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+/** Everyone the search box can find: members, and anyone who has played. */
+async function findable(): Promise<Findable[]> {
+  try {
+    const site = await getSite();
+    const val = new Map([...valBoard(site).rows, ...valBoard(site).unranked].map((r) => [r.person.key, r.rating]));
+    const ow = new Map([...owBoard(site, null).rows, ...owBoard(site, null).unranked].map((r) => [r.person.key, r.rating]));
+    return [...site.people.values()]
+      .filter((p) => p.memberId || val.has(p.key) || ow.has(p.key))
+      .map((p) => ({
+        name: p.name, slug: p.slug,
+        sub: [val.has(p.key) && `Valorant ${num(val.get(p.key))}`, ow.has(p.key) && `Overwatch ${num(ow.get(p.key))}`].filter(Boolean).join(", "),
+        also: [...p.riotIds, ...p.owNames, ...p.linked.overwatch, ...p.linked.valorant].join(" ").toLowerCase(),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return []; // search is a convenience; the page still works without it
+  }
+}
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const viewer = await getViewer();
   return (
@@ -22,32 +44,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link rel="stylesheet" href="/fonts/fonts.css" />
       </head>
       <body>
-        <header className="masthead">
-          <div className="wrap topbar">
-            <Link className="club" href="/">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="club-logo" src="/logo.png" alt="" width={52} height={59} />
-              <span className="club-text">
-                <span className="club-name">DUES Inhouses</span>
-                <span className="club-season">Dublin University Esports Society</span>
-              </span>
-            </Link>
-            <div className="userbar">
-              {viewer ? (
-                <Link href="/me" title="Your account" aria-label="Your account"><Avatar name={viewer.name} url={viewer.avatarUrl} /></Link>
-              ) : (
-                <Link className="btn discord" href="/login">Sign in with Discord</Link>
-              )}
-            </div>
-          </div>
-          <div className="wrap subnav">
-            <GameSwitch />
-            <SiteNav officer={isOfficer(viewer)} />
-          </div>
-        </header>
+        <GlobalNav
+          officer={isOfficer(viewer)}
+          viewer={viewer ? { name: viewer.name, slug: viewer.slug, avatar: <Avatar name={viewer.name} url={viewer.avatarUrl} /> } : null}
+          people={await findable()}
+        />
+        <LocalNav />
+        <Reveal />
         <main className="wrap">{children}</main>
-        <footer className="wrap footer">
-          <p>
+        <footer className="footer">
+          <p className="wrap">
             Dublin University Esports Society. Overwatch stats from ScrimTime Workshop logs; Valorant stats from the unofficial{" "}
             <a href="https://docs.henrikdev.xyz">HenrikDev API</a>.
             Overwatch is a trademark of Blizzard Entertainment. This site isn&apos;t endorsed by Riot Games and doesn&apos;t reflect the views or

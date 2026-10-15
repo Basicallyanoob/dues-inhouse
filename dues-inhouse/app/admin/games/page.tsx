@@ -28,7 +28,7 @@ export default async function Games({ searchParams }: { searchParams: Promise<{ 
       </section>
       <section>
         <h2>Valorant: fetch from match history</h2>
-        <p className="lede">Checks the last 10 games of every linked Riot ID and saves finished custom games with at least {s.minPlayers} players, {s.minMembers} or more of them linked members. This also runs by itself every morning.</p>
+        <p className="lede">Checks the last 10 games of every linked Riot ID and saves finished custom games with at least {s.minPlayers} players, {s.minMembers} or more of them linked members, that started in the Saturday session window. It also runs by itself during the weeklies and on Sunday.</p>
         <ValorantFetch anchors={anchors} configured={Boolean(s.key)} />
       </section>
       <section>

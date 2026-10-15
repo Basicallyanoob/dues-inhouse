@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Delta, mmss, num, pct, PlayerLink, signed } from "@/components/ui";
+import { Delta, Hero, mmss, num, pct, PlayerLink, signed } from "@/components/ui";
 import { CLASS_LABEL } from "@/lib/games";
 import { getSite } from "@/lib/season";
 import { clock, dayLabel } from "@/lib/time";
@@ -20,19 +20,21 @@ export default async function ValorantMatch({ params }: { params: Promise<{ id: 
   const v = valMatchView(site, m);
   return (
     <>
-      <section className="match-head">
-        <p className="crumb"><Link href="/valorant/matches">Matches</Link> / {dayLabel(m.playedAt)}, {clock(m.playedAt)}</p>
-        <h1>{m.mapName}</h1>
+      <Hero
+        crumb={<><Link href="/valorant/matches">Matches</Link> / {m.mapName}</>}
+        kicker={<>Valorant, {dayLabel(m.playedAt)} at {clock(m.playedAt)}</>}
+        title={m.mapName}
+      >
         <div className="scoreline" aria-label="Rounds won">
           <div className={`side t1${v.teams[0].won ? " won" : ""}`}><span className="team">Blue</span><span className="score">{m.score[0]}</span></div>
           <div className={`side t2${v.teams[1].won ? " won" : ""}`}><span className="score">{m.score[1]}</span><span className="team">Red</span></div>
         </div>
-        <p className="lede">
+        <p className="match-lede">
           {m.rounds} rounds{m.lengthMs ? `, ${mmss(m.lengthMs / 1000)}` : ""}. {m.winner === 0 ? "A draw." : `${m.winner === 1 ? "Blue" : "Red"} won.`}{" "}
           {v.prediction !== null && <>Before the game the ratings gave Blue a {pct(v.prediction)} chance{v.upset ? ", so this was an upset" : ""}. </>}
           {m.source === "manual" && "Typed in from the scoreboard, so damage and headshots are not recorded."}
         </p>
-      </section>
+      </Hero>
       {v.teams.map((t) => (
         <section key={t.no} className={`team-block t${t.no}`}>
           <h2>{t.name}{t.won ? ", winners" : ""}</h2>
