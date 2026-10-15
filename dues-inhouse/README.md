@@ -88,7 +88,7 @@ If a page shows an error after deploying, open the deployment's **Logs** in Verc
 
 Use the same Discord application as the sign-in.
 
-1. **Bot**: turn off **Public Bot**. No privileged intents are needed.
+1. **Bot**: turn off **Public Bot**. Optionally turn on **Server Members Intent**, so the DUES member check reads the whole server at once (see DUES members below); nothing else needs it.
 2. **Installation** (or **OAuth2 > URL Generator**): scopes `bot` and `applications.commands`; bot permissions **View Channels**, **Send Messages**, **Embed Links**. Open the link and add the bot to the club's server. Make sure it can post in the weeklies channel.
 3. **General Information > Interactions Endpoint URL**: `https://<your address>/api/discord`, then **Save**. Discord tests the address first, so the site must be deployed with `DISCORD_PUBLIC_KEY` set. Use the production address: Vercel's Deployment Protection blocks Discord from preview addresses.
 4. Register the slash commands on the server, from your computer, with the four `DISCORD_` values in `.env.local`:
@@ -98,6 +98,8 @@ Use the same Discord application as the sign-in.
    Run it again whenever `lib/discord/commands.ts` changes.
 
 Officers in the bot are the site's officers and admins, anyone in `ADMIN_DISCORD_IDS`, and anyone with **Manage Server** in Discord.
+
+**DUES members.** The leaderboards have an **Everyone / DUES members** switch. Anyone with the **Trinity** role in the Discord server counts as a member (change the role with `DUES_MEMBER_ROLE`). The bot reads it whenever someone uses it or signs in to the site, and for everyone with the Sunday import or **Admin > Members > Check Discord roles now**. To check the whole server in one request, turn on **Server Members Intent** under **Bot** in the Developer Portal; without it the bot asks about people one at a time, which is slower but works. On **Admin > Members** an officer can set anyone to Yes or No by hand, for example someone who isn't on Discord or whose role is wrong. Only people with a profile (signed in, or added on Admin > Members) can be members; players the site only knows from game logs show under Everyone.
 
 ### 5. The schedule (GitHub Actions)
 
@@ -134,7 +136,7 @@ Then **Actions > Weekly schedule > Run workflow** once to check it works (the lo
 - **Levels:** `lib/levels.ts` (XP per game and the level curve).
 - **New heroes or agents:** add them to `config/heroes.yaml` or `config/agents.yaml`. The leaderboards say when one is missing.
 - **Map pool:** `config/maps.yaml`. Keep it to the current competitive rotation; commit and the next deploy uses it.
-- **Other settings** (Vercel environment variables, all optional): `MIN_GAMES_RANKED` (games before someone appears on a ladder, default 5), `VAL_MIN_PLAYERS` (default 10), `VAL_MIN_MEMBERS` (default 3), `VAL_REGION` (default `eu`), `CLUB_TIME_ZONE` (default `Europe/Dublin`), `VAL_WINDOW` (default `sat 18:30-03:30`; `off` imports customs at any time), `VAL_PERF_WEIGHT` (default `0.3`; `0` for result-only ratings), `VAL_MARGIN_WEIGHT` (default `0.2`; `0` to ignore the round margin), `WEEKLY_AUTO` (`0` to open sign-ups and make teams by hand), `WEEKLY_SIGNUPS_OPEN` (default `17:00`), `WEEKLY_TEAMS_AT` (default `18:45`), `WEEKLY_VOTE_SECONDS` (default `120`), `WEEKLY_CHECKIN_SECONDS` (default `300`), `WEEKLY_RANK_GAMES` (default `8`), `DISCORD_LOG_CHANNEL_ID` (where the Sunday summary goes). If you change the Saturday times a lot, check the times in `.github/workflows/schedule.yml` still cover them.
+- **Other settings** (Vercel environment variables, all optional): `MIN_GAMES_RANKED` (games before someone appears on a ladder, default 5), `VAL_MIN_PLAYERS` (default 10), `VAL_MIN_MEMBERS` (default 3), `VAL_REGION` (default `eu`), `CLUB_TIME_ZONE` (default `Europe/Dublin`), `VAL_WINDOW` (default `sat 18:30-03:30`; `off` imports customs at any time), `VAL_PERF_WEIGHT` (default `0.3`; `0` for result-only ratings), `VAL_MARGIN_WEIGHT` (default `0.2`; `0` to ignore the round margin), `WEEKLY_AUTO` (`0` to open sign-ups and make teams by hand), `WEEKLY_SIGNUPS_OPEN` (default `17:00`), `WEEKLY_TEAMS_AT` (default `18:45`), `WEEKLY_VOTE_SECONDS` (default `120`), `WEEKLY_CHECKIN_SECONDS` (default `300`), `WEEKLY_RANK_GAMES` (default `8`), `DISCORD_LOG_CHANNEL_ID` (where the Sunday summary goes), `DUES_MEMBER_ROLE` (the Discord role for DUES members, by name or id; default `Trinity`, `off` to stop reading it). If you change the Saturday times a lot, check the times in `.github/workflows/schedule.yml` still cover them.
 
 ## Running it on your computer
 

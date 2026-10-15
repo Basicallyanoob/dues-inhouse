@@ -553,3 +553,11 @@ tr.me:target td { animation: you-flash 1.6s var(--ease); }
   .tile-meta { font-size: 12px; gap: 4px 6px; }
   .tile:hover { transform: none; box-shadow: none; }
 }
+
+/* Admin: DUES members */
+.dues-card { margin: 32px 0; }
+.dues-card .row { align-items: center; margin-top: 14px; }
+
+/* Leaderboards: "Everyone / DUES members", to the right of the role tabs */
+.who-filter { float: right; margin-left: 12px; }
+.boards .board, section > .scroll:has(> .ladder), section > .who-filter + .empty { clear: both; }

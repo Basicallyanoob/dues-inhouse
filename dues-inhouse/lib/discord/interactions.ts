@@ -4,6 +4,7 @@
  * interaction is acknowledged at once ("deferred") and the real work runs
  * straight after (`later`), editing the reply when it's done.
  */
+import { rolesFromInteraction } from "../dues";
 import { getSite, valRates, valRecord } from "../season";
 import { MemberError, linkFromDiscord, playerForDiscord } from "../members";
 import { FetchError, lookupAccount } from "../val/fetch";
@@ -24,7 +25,7 @@ export interface Interaction {
   id: string;
   token: string;
   channel_id?: string;
-  member?: { user: DUser; nick?: string | null; permissions?: string };
+  member?: { user: DUser; nick?: string | null; permissions?: string; roles?: string[] };
   user?: DUser;
   data?: { name?: string; options?: Option[]; custom_id?: string; resolved?: { users?: Record<string, DUser> } };
 }
@@ -63,9 +64,13 @@ async function guard(i: Interaction, work: () => Promise<void>, reply: (text: st
 
 export async function handleInteraction(i: Interaction): Promise<Handled> {
   if (i.type === 1) return { body: { type: PONG } };
-  if (i.type === 2) return command(i);
-  if (i.type === 3) return component(i);
-  return { body: { type: PONG } };
+  const handled = i.type === 2 ? command(i) : i.type === 3 ? component(i) : null;
+  if (!handled) return { body: { type: PONG } };
+  return { ...handled, later: async () => {
+    await handled.later?.();
+    // Discord sends the clicker's roles along: keep their DUES membership up to date for free.
+    if (i.member) await rolesFromInteraction(i.member.user.id, i.member.roles).catch((e) => console.error("could not save Discord roles", e));
+  } };
 }
 
 // ---------- slash commands ----------

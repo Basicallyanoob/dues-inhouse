@@ -30,7 +30,9 @@ export function verifySignature(publicKeyHex: string, signatureHex: string | nul
   }
 }
 
-export class DiscordError extends Error {}
+export class DiscordError extends Error {
+  constructor(message: string, readonly status?: number) { super(message); }
+}
 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 let fetcher: Fetcher = (url, init) => fetch(url, init);
@@ -54,7 +56,7 @@ async function call(method: string, path: string, body?: unknown, auth = true): 
       await new Promise((r) => setTimeout(r, Math.min(5, wait) * 1000));
       continue;
     }
-    if (!res.ok) throw new DiscordError(`Discord answered ${res.status} to ${method} ${path.replace(/\/webhooks\/\d+\/[^/]+/, "/webhooks/…")}: ${(await res.text()).slice(0, 300)}`);
+    if (!res.ok) throw new DiscordError(`Discord answered ${res.status} to ${method} ${path.replace(/\/webhooks\/\d+\/[^/]+/, "/webhooks/…")}: ${(await res.text()).slice(0, 300)}`, res.status);
     return res.status === 204 ? null : res.json();
   }
   throw new DiscordError("Discord kept rate limiting");
@@ -90,3 +92,12 @@ export const registerGuildCommands = (commands: unknown[]) => {
 };
 
 export const EPHEMERAL = 64;
+
+/** The server's roles, for finding the member role by name. */
+export const guildRoles = () => call("GET", `/guilds/${discordConfig().guildId}/roles`) as Promise<{ id: string; name: string }[]>;
+/** One person in the server, with their role ids. Fails with status 404 if they aren't in it. */
+export const guildMember = (userId: string) =>
+  call("GET", `/guilds/${discordConfig().guildId}/members/${userId}`) as Promise<{ user: { id: string }; roles: string[] }>;
+/** Up to 1000 people in the server. Needs the Server Members Intent switched on for the bot (403 without it). */
+export const guildMembers = (after = "0") =>
+  call("GET", `/guilds/${discordConfig().guildId}/members?limit=1000&after=${after}`) as Promise<{ user: { id: string }; roles: string[] }[]>;

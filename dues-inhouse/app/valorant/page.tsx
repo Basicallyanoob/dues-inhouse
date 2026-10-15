@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Delta, Empty, Hero, Level, num, pct, PlayerLink, Tile } from "@/components/ui";
 import { CLASS_LABEL } from "@/lib/games";
+import { WhoFilter } from "@/components/WhoFilter";
 import { getViewer } from "@/lib/auth";
 import { getSite } from "@/lib/season";
-import { MIN_MAPS, valBoard, valMatchView } from "@/lib/views";
+import { MIN_MAPS, valBoard, valMatchView, whoFrom } from "@/lib/views";
 import { valTile } from "./tiles";
 
 export const metadata = { title: "Valorant leaderboard" };
 
-export default async function ValorantLadder() {
+export default async function ValorantLadder({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
+  const who = whoFrom((await searchParams).who);
   const site = await getSite();
   const { val } = site;
   if (!val.maps.length) {
@@ -24,7 +26,9 @@ export default async function ValorantLadder() {
       </section>
     );
   }
-  const board = valBoard(site);
+  const all = valBoard(site);
+  const keep = (r: { person: { dues: boolean } }) => who === "everyone" || r.person.dues;
+  const board = { rows: all.rows.filter(keep), unranked: all.unranked.filter(keep) };
   const me = (await getViewer())?.id;
   const myRank = board.rows.findIndex((r) => r.person.key === me);
   const myGames = board.unranked.find((r) => r.person.key === me)?.maps;
@@ -48,6 +52,7 @@ export default async function ValorantLadder() {
       </Hero>
       {val.unknownAgents.size > 0 && <p className="notice">Agents missing from config/agents.yaml: {[...val.unknownAgents].sort().join(", ")}.</p>}
       <section aria-label="Leaderboard">
+        <WhoFilter base="/valorant" who={who} />
         {board.rows.length ? (
           <div className="scroll">
             <table className="ladder">
@@ -81,7 +86,7 @@ export default async function ValorantLadder() {
               </tbody>
             </table>
           </div>
-        ) : <Empty>Nobody has played {MIN_MAPS} games yet.</Empty>}
+        ) : <Empty>{who === "members" ? `No DUES members have played ${MIN_MAPS} games yet.` : `Nobody has played ${MIN_MAPS} games yet.`}</Empty>}
         <p className="footnote">ACS is average combat score per round, KPR kills per round, ADR average damage per round, FBPR first bloods (a round&apos;s first kill) per round, and HS% the share of shots that hit the head. Plants is spike plants in total. Everyone starts on 1,000.</p>
         {board.unranked.length > 0 && (
           <p className="unranked">Not ranked yet, fewer than {MIN_MAPS} games:{" "}

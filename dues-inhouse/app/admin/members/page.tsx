@@ -2,7 +2,8 @@ import { officerPage } from "@/lib/auth";
 import Link from "next/link";
 import { ConfirmButton } from "@/components/Confirm";
 import { Flash } from "@/components/ui";
-import { addMember, changeRole, officerUnlink, uploadRoster } from "../../actions";
+import { addMember, changeRole, checkDuesRoles, officerUnlink, setDuesMember, uploadRoster } from "../../actions";
+import { memberRoleSetting } from "@/lib/dues";
 import { getViewer, isAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -12,9 +13,12 @@ export default async function Members({ searchParams }: { searchParams: Promise<
   const viewer = await getViewer();
   const rows = await db()`
     select p.id, p.display_name, p.slug, p.role, p.auth_id is not null as signed_in,
+      coalesce(p.dues_override, p.dues_role) as dues,
       coalesce((select json_agg(json_build_object('id', a.id, 'game', a.game, 'account', a.account) order by a.game, a.account)
                 from game_accounts a where a.player_id = p.id and a.status = 'approved'), '[]') as accounts
     from players p order by p.role = 'member', lower(p.display_name)`;
+  const role = memberRoleSetting();
+  const members = rows.filter((p) => p.dues).length;
   return (
     <>
       <Flash ok={flash.ok} error={flash.error} />
@@ -38,10 +42,22 @@ export default async function Members({ searchParams }: { searchParams: Promise<
           </form>
         </section>
       </div>
+      <section className="card dues-card">
+        <h2>DUES members</h2>
+        <p className="muted">
+          Everyone with the <b>{role}</b> role in the Discord server counts as a DUES member, for the members-only leaderboards.
+          Roles are read when someone uses the bot or signs in, and for everyone with the Sunday import.
+          If it&apos;s wrong for someone, or they aren&apos;t on Discord, change them to Yes or No below.
+        </p>
+        <div className="row">
+          <span><b>{members} of {rows.length}</b> are DUES members.</span>
+          <form className="inline-form" action={checkDuesRoles}><button className="btn ghost small">Check Discord roles now</button></form>
+        </div>
+      </section>
       <section>
         <h2>Everyone</h2>
         <div className="scroll"><table>
-          <thead><tr><th scope="col">Name</th><th scope="col">Accounts</th><th scope="col">Role</th></tr></thead>
+          <thead><tr><th scope="col">Name</th><th scope="col">Accounts</th><th scope="col">DUES member</th><th scope="col">Role</th></tr></thead>
           <tbody>{rows.map((p) => (
             <tr key={p.id}>
               <td className="name"><Link href={`/players/${p.slug}`}>{p.display_name}</Link>{!p.signed_in && <span className="alias">roster entry, not signed in</span>}</td>
@@ -50,6 +66,16 @@ export default async function Members({ searchParams }: { searchParams: Promise<
                   <form className="inline-form" action={officerUnlink}><input type="hidden" name="id" value={a.id} /><ConfirmButton message={`Unlink ${a.account} from ${p.display_name}?`} className="link-btn">×</ConfirmButton></form>
                 </span>
               ))}</td>
+              <td>
+                <form className="row" action={setDuesMember}>
+                  <input type="hidden" name="id" value={p.id} />
+                  <select name="dues" defaultValue={p.dues ? "yes" : "no"} aria-label={`DUES member: ${p.display_name}`}>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                  <button className="btn ghost small">Set</button>
+                </form>
+              </td>
               <td>{isAdmin(viewer) ? (
                 <form className="row" action={changeRole}>
                   <input type="hidden" name="id" value={p.id} />

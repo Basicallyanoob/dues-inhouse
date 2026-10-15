@@ -300,3 +300,7 @@ export function valRecords(site: Site): RecordBoard[] {
     board("deaths", "Most deaths", "deaths", ({ p }) => p.deaths),
   ];
 }
+
+/** Leaderboards: everyone, or DUES members only (?who=members). */
+export type Who = "everyone" | "members";
+export const whoFrom = (v: string | string[] | undefined): Who => (v === "members" ? "members" : "everyone");

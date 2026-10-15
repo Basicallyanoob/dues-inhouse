@@ -167,6 +167,13 @@ create table if not exists site_state (
 );
 insert into site_state (key, value) values ('data_version', '0') on conflict do nothing;
 
+-- DUES membership, for the members-only leaderboards. dues_role follows the
+-- member role in the Discord server (DUES_MEMBER_ROLE, "Trinity" by default);
+-- an officer can override it either way (dues_override: null = follow Discord).
+alter table players add column if not exists dues_role boolean not null default false;
+alter table players add column if not exists dues_override boolean;
+alter table players add column if not exists dues_checked_at timestamptz;
+
 alter table players enable row level security;
 alter table game_accounts enable row level security;
 alter table ow_maps enable row level security;

@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { Delta, Empty, Hero, Level, num, pct, PlayerLink, Tile } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/games";
+import { WhoFilter } from "@/components/WhoFilter";
 import { getViewer } from "@/lib/auth";
 import { getSite } from "@/lib/season";
-import { MIN_MAPS, owBoard, owMatchView } from "@/lib/views";
+import { MIN_MAPS, owBoard, owMatchView, whoFrom } from "@/lib/views";
 import { owTile } from "./tiles";
 
 export const metadata = { title: "Overwatch leaderboard" };
 
-export default async function OverwatchLadder() {
+export default async function OverwatchLadder({ searchParams }: { searchParams: Promise<{ who?: string; role?: string }> }) {
+  const params = await searchParams;
+  const who = whoFrom(params.who);
   const site = await getSite();
   const { ow } = site;
   if (!ow.maps.length) {
@@ -24,7 +27,10 @@ export default async function OverwatchLadder() {
       </section>
     );
   }
-  const boards = [owBoard(site, null), ...(["tank", "damage", "support"] as const).map((r) => owBoard(site, r))];
+  const keep = (r: { person: { dues: boolean } }) => who === "everyone" || r.person.dues;
+  const boards = [owBoard(site, null), ...(["tank", "damage", "support"] as const).map((r) => owBoard(site, r))]
+    .map((b) => ({ ...b, rows: b.rows.filter(keep), unranked: b.unranked.filter(keep) }));
+  const openRole = boards.some((b) => b.role === params.role) ? params.role : undefined;
   const me = (await getViewer())?.id;
   const myRank = boards[0].rows.findIndex((r) => r.person.key === me);
   const myMaps = boards[0].unranked.find((r) => r.person.key === me)?.maps;
@@ -48,7 +54,8 @@ export default async function OverwatchLadder() {
       </Hero>
       {ow.unknownHeroes.size > 0 && <p className="notice">Heroes missing from config/heroes.yaml: {[...ow.unknownHeroes].sort().join(", ")}. Add them so their maps count towards role ratings.</p>}
       <section className="boards" aria-label="Leaderboards by role">
-        {boards.map((b, i) => <input key={b.role ?? "overall"} type="radio" name="board" id={`board-${b.role ?? "overall"}`} className="board-toggle" defaultChecked={i === 0} />)}
+        {boards.map((b, i) => <input key={b.role ?? "overall"} type="radio" name="board" id={`board-${b.role ?? "overall"}`} className="board-toggle" defaultChecked={openRole ? b.role === openRole : i === 0} />)}
+        <WhoFilter base="/overwatch" who={who} />
         <div className="segmented" role="group" aria-label="Role">
           {boards.map((b) => <label key={b.role ?? "overall"} htmlFor={`board-${b.role ?? "overall"}`}>{b.role ? ROLE_LABEL[b.role] : "Overall"}</label>)}
         </div>
@@ -82,7 +89,7 @@ export default async function OverwatchLadder() {
                   </tbody>
                 </table>
               </div>
-            ) : <Empty>Nobody has played {MIN_MAPS} {b.role ? ROLE_LABEL[b.role].toLowerCase() : ""} maps yet.</Empty>}
+            ) : <Empty>{who === "members" ? "No DUES members have" : "Nobody has"} played {MIN_MAPS} {b.role ? ROLE_LABEL[b.role].toLowerCase() : ""} maps yet.</Empty>}
             {b.unranked.length > 0 && (
               <p className="unranked">Not ranked yet, fewer than {MIN_MAPS} maps:{" "}
                 {b.unranked.map((r, i) => <span key={r.person.key}><PlayerLink p={r.person} game="overwatch" /> ({r.maps}){i < b.unranked.length - 1 ? ", " : ""}</span>)}

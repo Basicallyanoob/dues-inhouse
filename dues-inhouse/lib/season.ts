@@ -28,6 +28,7 @@ export interface Person {
   owNames: Set<string>;
   riotIds: Set<string>;
   linked: { overwatch: string[]; valorant: string[] }; // approved accounts, members only
+  dues: boolean; // a DUES member: has the member role in Discord, or an officer said so
 }
 
 // ---------- Overwatch ----------
@@ -220,7 +221,7 @@ export async function getSite(): Promise<Site> {
 async function build(version: string): Promise<Site> {
   const sql = db();
   const [members, accounts, owRows, valRows] = await Promise.all([
-    sql`select id, display_name, slug, avatar_url, note from players`,
+    sql`select id, display_name, slug, avatar_url, note, coalesce(dues_override, dues_role) as dues from players`,
     approvedAccounts(sql),
     sql`select * from ow_maps order by played_at, id`,
     sql`select * from val_matches order by played_at, id`,
@@ -230,7 +231,7 @@ async function build(version: string): Promise<Site> {
   const taken = new Set<string>();
   for (const m of members) {
     people.set(m.id, { key: m.id, slug: m.slug, name: m.display_name, memberId: m.id, avatarUrl: m.avatar_url,
-      note: m.note, owNames: new Set(), riotIds: new Set(), linked: { overwatch: [], valorant: [] } });
+      note: m.note, owNames: new Set(), riotIds: new Set(), linked: { overwatch: [], valorant: [] }, dues: Boolean(m.dues) });
     taken.add(m.slug);
   }
   for (const a of accounts) people.get(a.playerId)?.linked[a.game].push(a.account);
@@ -242,7 +243,7 @@ async function build(version: string): Promise<Site> {
     while (taken.has(slug)) slug += "-x";
     taken.add(slug);
     p = { key, slug, name, memberId: null, avatarUrl: null, note: null, owNames: new Set(), riotIds: new Set(),
-      linked: { overwatch: [], valorant: [] } };
+      linked: { overwatch: [], valorant: [] }, dues: false };
     people.set(key, p);
     return p;
   };

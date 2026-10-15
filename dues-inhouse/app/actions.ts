@@ -9,6 +9,8 @@ import {
   MemberError, addRosterMember, approveLink, importRoster, rejectLink, removeLink, requestLink, setRole, updateProfile,
 } from "@/lib/members";
 import { isGame } from "@/lib/games";
+import { checkEveryone, setDues } from "@/lib/dues";
+import { DiscordError } from "@/lib/discord/api";
 
 const KNOWN = [AuthError, MemberError];
 
@@ -115,6 +117,36 @@ export async function changeRole(f: FormData) {
     if (!["member", "officer", "admin"].includes(role)) throw new MemberError("Unknown role.");
     if (str(f, "id") === v.id && role !== "admin") throw new MemberError("You can't demote yourself; ask another admin.");
     await setRole(str(f, "id"), role as "member" | "officer" | "admin");
+  });
+}
+
+/** An officer marks someone as a DUES member or not. */
+export async function setDuesMember(f: FormData) {
+  await attempt("/admin/members", "DUES membership saved.", async () => {
+    await requireOfficer();
+    const v = str(f, "dues");
+    if (!["yes", "no"].includes(v)) throw new MemberError("Pick Yes or No.");
+    await setDues(str(f, "id"), v === "yes");
+  });
+}
+
+/** Read everyone's member role from Discord now, rather than waiting for Sunday. */
+export async function checkDuesRoles() {
+  await attempt("/admin/members", "", async () => {
+    await requireOfficer();
+    let r;
+    try {
+      r = await checkEveryone();
+    } catch (e) {
+      if (e instanceof DiscordError) throw new MemberError(`Discord said no: ${e.message.slice(0, 160)}`);
+      throw e;
+    }
+    if (!r.ok) throw new MemberError(r.note ?? "Couldn't check the Discord roles.");
+    return [
+      `Checked ${r.checked} ${r.checked === 1 ? "person" : "people"} for the ${r.role} role: ${r.changed} changed, ${r.members} DUES members now.`,
+      r.remaining ? `${r.remaining} still to check; press again.` : "",
+      r.note ?? "",
+    ].filter(Boolean).join(" ");
   });
 }
 
