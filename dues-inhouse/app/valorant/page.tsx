@@ -40,7 +40,8 @@ export default async function ValorantLadder({ searchParams }: { searchParams: P
       <Hero
         kicker="Valorant weeklies"
         title="Leaderboard"
-        actions={myRank >= 0 ? <a className="pill secondary" href="#you">You&apos;re #{myRank + 1}. Find your row</a> : undefined}
+        actions={myRank >= 0 ? <a className="pill secondary" href="#you">You&apos;re #{myRank + 1}. Find your row</a>
+          : myGames !== undefined ? <a className="pill secondary" href="#you">You&apos;re provisional. Find your row</a> : undefined}
         facts={[
           { label: "Games", value: num(val.maps.length) },
           { label: "Club nights", value: num(nights) },
@@ -53,7 +54,7 @@ export default async function ValorantLadder({ searchParams }: { searchParams: P
       {val.unknownAgents.size > 0 && <p className="notice">Agents missing from config/agents.yaml: {[...val.unknownAgents].sort().join(", ")}.</p>}
       <section aria-label="Leaderboard">
         <WhoFilter base="/valorant" who={who} />
-        {board.rows.length ? (
+        {board.rows.length + board.unranked.length ? (
           <div className="scroll">
             <table className="ladder">
               <caption className="sr">Valorant leaderboard</caption>
@@ -70,10 +71,13 @@ export default async function ValorantLadder({ searchParams }: { searchParams: P
                 <th scope="col" className="opt">Plays</th>
               </tr></thead>
               <tbody>
-                {board.rows.map((r, i) => (
-                  <tr key={r.person.key} {...(r.person.key === me ? { id: "you", className: "me" } : {})}>
-                    <td className="num rank">{i + 1}</td>
-                    <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="valorant" />{r.person.key === me && <span className="you-tag">You</span>}</span></td>
+                {[...board.rows, ...board.unranked].map((r, i) => (
+                  <tr key={r.person.key} id={r.person.key === me ? "you" : undefined}
+                    className={[r.person.key === me && "me", i >= board.rows.length && "provisional", i === board.rows.length && i > 0 && "first-provisional"].filter(Boolean).join(" ") || undefined}>
+                    <td className="num rank">{i < board.rows.length ? i + 1 : "–"}</td>
+                    <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="valorant" />
+                      {r.person.key === me && <span className="you-tag">You</span>}
+                      {i >= board.rows.length && <span className="prov-tag" title={`Fewer than ${MIN_MAPS} games: not ranked yet`}>Provisional</span>}</span></td>
                     <td className="num rating">{num(r.rating)}</td>
                     <td className="num"><Delta v={r.change} /></td>
                     <td className="num">{r.maps}</td><td className="num">{r.record}</td><td className="num">{pct(r.winrate)}</td>
@@ -86,13 +90,8 @@ export default async function ValorantLadder({ searchParams }: { searchParams: P
               </tbody>
             </table>
           </div>
-        ) : <Empty>{who === "members" ? `No DUES members have played ${MIN_MAPS} games yet.` : `Nobody has played ${MIN_MAPS} games yet.`}</Empty>}
-        <p className="footnote">ACS is average combat score per round, KPR kills per round, ADR average damage per round, FBPR first bloods (a round&apos;s first kill) per round, and HS% the share of shots that hit the head. Plants is spike plants in total. Everyone starts on 1,000.</p>
-        {board.unranked.length > 0 && (
-          <p className="unranked">Not ranked yet, fewer than {MIN_MAPS} games:{" "}
-            {board.unranked.map((r, i) => <span key={r.person.key}><PlayerLink p={r.person} game="valorant" /> ({r.maps}){i < board.unranked.length - 1 ? ", " : ""}</span>)}
-          </p>
-        )}
+        ) : <Empty>{who === "members" ? "No DUES members have played yet." : "Nobody has played yet."}</Empty>}
+        <p className="footnote">Provisional players have played fewer than {MIN_MAPS} games and get a rank once they reach {MIN_MAPS}. ACS is average combat score per round, KPR kills per round, ADR average damage per round, FBPR first bloods (a round&apos;s first kill) per round, and HS% the share of shots that hit the head. Plants is spike plants in total. Everyone starts on 1,000.</p>
       </section>
       <section>
         <h2>Latest games</h2>

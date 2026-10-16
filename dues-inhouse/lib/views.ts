@@ -9,7 +9,8 @@ import {
 import { shortDay } from "./time";
 
 export const UPSET = 0.35;
-export const MIN_MAPS = Number(process.env.MIN_GAMES_RANKED ?? 5);
+/** Games before someone gets a rank number. Fewer, and they show on the ladder as provisional. */
+export const MIN_MAPS = Number(process.env.MIN_GAMES_RANKED ?? 3);
 
 export const recordText = ([w, l, d]: [number, number, number]) => `${w}–${l}${d ? `–${d}` : ""}`;
 
@@ -60,7 +61,7 @@ export function owBoard(site: Site, role: OwRole | null) {
     (games >= MIN_MAPS ? rows : unranked).push(row);
   }
   rows.sort((a, b) => b.rating - a.rating || a.person.name.localeCompare(b.person.name));
-  unranked.sort((a, b) => b.maps - a.maps || a.person.name.localeCompare(b.person.name));
+  unranked.sort((a, b) => b.rating - a.rating || a.person.name.localeCompare(b.person.name));
   return { role, rows, unranked };
 }
 
@@ -180,7 +181,7 @@ export function valBoard(site: Site) {
     (games >= MIN_MAPS ? rows : unranked).push(row);
   }
   rows.sort((a, b) => b.rating - a.rating || a.person.name.localeCompare(b.person.name));
-  unranked.sort((a, b) => b.maps - a.maps || a.person.name.localeCompare(b.person.name));
+  unranked.sort((a, b) => b.rating - a.rating || a.person.name.localeCompare(b.person.name));
   return { rows, unranked };
 }
 

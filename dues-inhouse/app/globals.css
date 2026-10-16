@@ -561,3 +561,8 @@ tr.me:target td { animation: you-flash 1.6s var(--ease); }
 /* Leaderboards: "Everyone / DUES members", to the right of the role tabs */
 .who-filter { float: right; margin-left: 12px; }
 .boards .board, section > .scroll:has(> .ladder), section > .who-filter + .empty { clear: both; }
+
+/* Leaderboards: provisional players, below the ranked ones */
+.prov-tag { font-size: 11px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 980px; padding: 1px 7px; margin-left: 2px; }
+tr.provisional td.rating { color: var(--muted); }
+tr.first-provisional td { border-top: 2px solid var(--line); }

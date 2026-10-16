@@ -42,7 +42,8 @@ export default async function OverwatchLadder({ searchParams }: { searchParams: 
       <Hero
         kicker="Overwatch inhouses"
         title="Leaderboard"
-        actions={myRank >= 0 ? <a className="pill secondary" href="#you">You&apos;re #{myRank + 1} overall. Find your row</a> : undefined}
+        actions={myRank >= 0 ? <a className="pill secondary" href="#you">You&apos;re #{myRank + 1} overall. Find your row</a>
+          : myMaps !== undefined ? <a className="pill secondary" href="#you">You&apos;re provisional. Find your row</a> : undefined}
         facts={[
           { label: "Maps", value: num(ow.maps.length) },
           { label: "Club nights", value: num(nights) },
@@ -61,7 +62,7 @@ export default async function OverwatchLadder({ searchParams }: { searchParams: 
         </div>
         {boards.map((b) => (
           <div key={b.role ?? "overall"} className={`board board-${b.role ?? "overall"}`}>
-            {b.rows.length ? (
+            {b.rows.length + b.unranked.length ? (
               <div className="scroll">
                 <table className="ladder">
                   <caption className="sr">{b.role ? ROLE_LABEL[b.role] : "Overall"} leaderboard</caption>
@@ -74,10 +75,13 @@ export default async function OverwatchLadder({ searchParams }: { searchParams: 
                     <th scope="col" className="opt">Most played</th>
                   </tr></thead>
                   <tbody>
-                    {b.rows.map((r, i) => (
-                      <tr key={r.person.key} {...(r.person.key === me ? { id: b.role ? undefined : "you", className: "me" } : {})}>
-                        <td className="num rank">{i + 1}</td>
-                        <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="overwatch" />{r.person.key === me && <span className="you-tag">You</span>}</span></td>
+                    {[...b.rows, ...b.unranked].map((r, i) => (
+                      <tr key={r.person.key} id={r.person.key === me && !b.role ? "you" : undefined}
+                        className={[r.person.key === me && "me", i >= b.rows.length && "provisional", i === b.rows.length && i > 0 && "first-provisional"].filter(Boolean).join(" ") || undefined}>
+                        <td className="num rank">{i < b.rows.length ? i + 1 : "–"}</td>
+                        <td className="name"><span className="who-cell"><Level level={r.level} /> <PlayerLink p={r.person} game="overwatch" />
+                          {r.person.key === me && <span className="you-tag">You</span>}
+                          {i >= b.rows.length && <span className="prov-tag" title={`Fewer than ${MIN_MAPS} maps${b.role ? " in this role" : ""}: not ranked yet`}>Provisional</span>}</span></td>
                         <td className="num rating">{num(r.rating)}</td>
                         {!b.role && <td className="num"><Delta v={r.change} /></td>}
                         <td className="num">{r.maps}</td><td className="num">{r.record}</td><td className="num">{pct(r.winrate)}</td>
@@ -89,15 +93,10 @@ export default async function OverwatchLadder({ searchParams }: { searchParams: 
                   </tbody>
                 </table>
               </div>
-            ) : <Empty>{who === "members" ? "No DUES members have" : "Nobody has"} played {MIN_MAPS} {b.role ? ROLE_LABEL[b.role].toLowerCase() : ""} maps yet.</Empty>}
-            {b.unranked.length > 0 && (
-              <p className="unranked">Not ranked yet, fewer than {MIN_MAPS} maps:{" "}
-                {b.unranked.map((r, i) => <span key={r.person.key}><PlayerLink p={r.person} game="overwatch" /> ({r.maps}){i < b.unranked.length - 1 ? ", " : ""}</span>)}
-              </p>
-            )}
+            ) : <Empty>{who === "members" ? "No DUES members have" : "Nobody has"} played {b.role ? `a ${ROLE_LABEL[b.role].toLowerCase()} map` : "a map"} yet.</Empty>}
           </div>
         ))}
-        <p className="footnote">Per-10 figures are per ten minutes of play. Everyone starts on 1,000, and each role has its own rating.</p>
+        <p className="footnote">Provisional players have played fewer than {MIN_MAPS} maps (in that role, on the role tabs) and get a rank once they reach {MIN_MAPS}. Per-10 figures are per ten minutes of play. Everyone starts on 1,000, and each role has its own rating.</p>
       </section>
       <section>
         <h2>Latest maps</h2>
