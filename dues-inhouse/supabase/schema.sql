@@ -174,6 +174,15 @@ alter table players add column if not exists dues_role boolean not null default 
 alter table players add column if not exists dues_override boolean;
 alter table players add column if not exists dues_checked_at timestamptz;
 
+-- Games an officer removed, so the next import doesn't add them back.
+create table if not exists removed_games (
+  game text not null check (game in ('overwatch', 'valorant')),
+  id text not null,
+  removed_at timestamptz not null default now(),
+  primary key (game, id)
+);
+alter table removed_games enable row level security;
+
 alter table players enable row level security;
 alter table game_accounts enable row level security;
 alter table ow_maps enable row level security;

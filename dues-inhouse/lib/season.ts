@@ -11,6 +11,7 @@ import { gameXp, levelFor } from "./levels";
 import { mainHero, STAT_KEYS, total, type HeroStats, type OwPlayer, type StatKey } from "./ow/parse";
 import { normaliseRiot, type ValLine } from "./val/match";
 import { rateGames, type RatingBook } from "./ratings";
+import { seasonStart } from "./seasons";
 import { nightKey } from "./time";
 import { slugify } from "./slug";
 
@@ -220,11 +221,13 @@ export async function getSite(): Promise<Site> {
 
 async function build(version: string): Promise<Site> {
   const sql = db();
+  // Only this season's games count; older ones stay saved but are left out.
+  const from = (await seasonStart(sql)) ?? new Date(0);
   const [members, accounts, owRows, valRows] = await Promise.all([
     sql`select id, display_name, slug, avatar_url, note, coalesce(dues_override, dues_role) as dues from players`,
     approvedAccounts(sql),
-    sql`select * from ow_maps order by played_at, id`,
-    sql`select * from val_matches order by played_at, id`,
+    sql`select * from ow_maps where played_at >= ${from} order by played_at, id`,
+    sql`select * from val_matches where played_at >= ${from} order by played_at, id`,
   ]);
   const index = accountIndex(accounts);
   const people = new Map<string, Person>();

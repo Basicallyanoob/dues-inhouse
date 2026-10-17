@@ -1,4 +1,5 @@
 /** Saving and removing games. */
+import { forgetGame } from "./seasons";
 import { db, bumpDataVersion, type Tx } from "./db";
 import { fingerprint, type OwMap } from "./ow/parse";
 import { STATS_VERSION, matchesIn, trim, type StoredValMatch } from "./val/match";
@@ -104,5 +105,6 @@ export async function restatFromRaw(sql: Sql = db(), limit = 200): Promise<numbe
 export async function deleteGame(game: "overwatch" | "valorant", id: string, sql: Sql = db()) {
   if (game === "overwatch") await sql`delete from ow_maps where id = ${id}`;
   else await sql`delete from val_matches where id = ${id}`;
+  await forgetGame(game, id, sql); // so the next import doesn't add it back
   await bumpDataVersion(sql);
 }

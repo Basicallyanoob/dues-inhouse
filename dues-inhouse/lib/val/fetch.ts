@@ -6,6 +6,7 @@
  * enough members in the lobby. The free key allows 30 requests a minute, so
  * anchors are checked in batches, oldest-checked first, within a time budget.
  */
+import { removedGames, seasonStart } from "../seasons";
 import { db, type Tx } from "../db";
 import { restatFromRaw, saveValMatch } from "../ingest";
 import { findWeeklyGame, linkWeeklyGame } from "../weekly/results";
@@ -143,6 +144,8 @@ interface Context {
   minPlayers: number;
   minMembers: number;
   uploader: string | null;
+  seasonStart: Date | null;
+  removed: Set<string>;
 }
 
 async function context(uploader: string | null): Promise<Context> {
@@ -155,6 +158,7 @@ async function context(uploader: string | null): Promise<Context> {
     memberKeys: new Set(members.map((m) => m.account_key as string)),
     memberIds: new Set(members.filter((m) => m.puuid).map((m) => m.puuid as string)),
     sessions: sessions.map((r) => ({ start: new Date(r.window_start), end: new Date(r.window_end) })),
+    seasonStart: await seasonStart(sql), removed: await removedGames("valorant", sql),
   };
 }
 
@@ -167,6 +171,8 @@ async function processHistory(history: ApiMatch[], ctx: Context, report: FetchRe
     const [ok, why] = isCustomGame(raw, ctx.minPlayers);
     if (!ok) { skip(report, why); continue; }
     const m = trim(raw);
+    if (ctx.seasonStart && m.playedAt < ctx.seasonStart) { skip(report, "before the season started"); continue; }
+    if (ctx.removed.has(m.id)) { skip(report, "removed by an officer"); continue; }
     const inSession = ctx.sessions.some((w) => w.start <= m.playedAt && m.playedAt < w.end);
     if (!inSession && !inWeeklyWindow(m.playedAt, spec)) { skip(report, "outside the session window"); continue; }
     const weeklyGame = await findWeeklyGame(m, ctx.sql);

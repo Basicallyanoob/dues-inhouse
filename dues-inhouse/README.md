@@ -133,6 +133,8 @@ Then **Actions > Weekly schedule > Run workflow** once to check it works (the lo
 
 ## Changing things
 
+- **New season / reset ratings:** on **Admin > Games > Season**, pick a start date. Only games from that day count (everyone starts again on 1,000); older games stay saved but are left out, and imports don't bring them back. Clear it to count every game again. Games removed on Admin > Games aren't re-imported either.
+
 - **Levels:** `lib/levels.ts` (XP per game and the level curve).
 - **New heroes or agents:** add them to `config/heroes.yaml` or `config/agents.yaml`. The leaderboards say when one is missing.
 - **Map pool:** `config/maps.yaml`. Keep it to the current competitive rotation; commit and the next deploy uses it.

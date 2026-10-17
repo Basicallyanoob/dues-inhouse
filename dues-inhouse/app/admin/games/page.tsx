@@ -3,7 +3,8 @@ import Link from "next/link";
 import { UploadBox, ValorantFetch } from "@/components/AdminTools";
 import { ConfirmButton } from "@/components/Confirm";
 import { Flash } from "@/components/ui";
-import { removeGame } from "../../actions";
+import { removeGame, setSeason } from "../../actions";
+import { seasonStartDay } from "@/lib/seasons";
 import { db } from "@/lib/db";
 import { getSite } from "@/lib/season";
 import { clock, shortDay } from "@/lib/time";
@@ -14,6 +15,7 @@ export default async function Games({ searchParams }: { searchParams: Promise<{ 
   const flash = await searchParams;
   const site = await getSite();
   const s = valSettings();
+  const season = await seasonStartDay();
   const [{ n: anchors }] = await db()`select count(*)::int as n from game_accounts where game = 'valorant' and status = 'approved'`;
   const recent = [
     ...site.ow.maps.map((m) => ({ game: "overwatch" as const, id: m.id, at: m.playedAt, label: `${m.mapName} ${m.score[0]}–${m.score[1]}${m.complete ? "" : " (unfinished)"}` })),
@@ -22,6 +24,18 @@ export default async function Games({ searchParams }: { searchParams: Promise<{ 
   return (
     <>
       <Flash ok={flash.ok} error={flash.error} />
+      <section className="card season-card">
+        <h2>Season</h2>
+        <p className="muted">
+          {season ? <>This season started on <b>{season}</b>. Only games from that day on count for ratings, leaderboards, records and profiles; older games stay saved but are left out, and imports don&apos;t bring them back.</>
+            : <>Every game ever imported counts. Pick a start date to reset everyone to 1,000: only games from that day on will count, and imports won&apos;t bring older ones back.</>}
+        </p>
+        <form className="row" action={setSeason}>
+          <div className="field"><label htmlFor="season-day">Season starts on</label><input id="season-day" name="day" type="date" defaultValue={season ?? ""} /></div>
+          <ConfirmButton message="Change the season start? Ratings are recalculated from that day on.">Save</ConfirmButton>
+        </form>
+        {season && <form action={setSeason}><input type="hidden" name="day" value="" /><button className="link-btn">Count every game again</button></form>}
+      </section>
       <section>
         <h2>Upload games</h2>
         <UploadBox />

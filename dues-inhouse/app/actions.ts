@@ -10,6 +10,7 @@ import {
 } from "@/lib/members";
 import { isGame } from "@/lib/games";
 import { checkEveryone, setDues } from "@/lib/dues";
+import { setSeasonStart } from "@/lib/seasons";
 import { DiscordError } from "@/lib/discord/api";
 
 const KNOWN = [AuthError, MemberError];
@@ -147,6 +148,17 @@ export async function checkDuesRoles() {
       r.remaining ? `${r.remaining} still to check; press again.` : "",
       r.note ?? "",
     ].filter(Boolean).join(" ");
+  });
+}
+
+/** Start a new season: only games from that day count. Empty to count every game again. */
+export async function setSeason(f: FormData) {
+  await attempt("/admin/games", "", async () => {
+    await requireOfficer();
+    const day = str(f, "day").trim();
+    if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new MemberError("Pick a date.");
+    await setSeasonStart(day || null);
+    return day ? `New season from ${day}. Ratings now count only games from then on.` : "Every game counts again.";
   });
 }
 
