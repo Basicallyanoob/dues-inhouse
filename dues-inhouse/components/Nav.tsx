@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { ThemeToggle } from "./Theme";
 
 const SECTIONS = {
   overwatch: { title: "Overwatch", links: [["", "Leaderboard"], ["/matches", "Matches"], ["/records", "Records"], ["/heroes", "Heroes"]], action: ["/builder", "Team builder"] },
@@ -73,6 +74,7 @@ export function GlobalNav({ officer, viewer, people }: { officer: boolean; viewe
           {links.map(([href, label, on]) => <Link key={href} href={href} aria-current={on ? "page" : undefined}>{label}</Link>)}
         </nav>
         <div className="gnav-tools">
+          <ThemeToggle />
           <button className="gnav-icon" type="button" aria-expanded={panel === "search"} aria-controls="gnav-search" onClick={(e) => toggle("search", e)}>
             <span className="sr">Find a player</span>
             <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden><circle cx="6.8" cy="6.8" r="5.3" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M10.7 10.7 15 15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>

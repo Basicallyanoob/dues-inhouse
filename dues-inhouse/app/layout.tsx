@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { Avatar, num } from "@/components/ui";
 import { GlobalNav, LocalNav, type Findable } from "@/components/Nav";
 import { Reveal } from "@/components/Reveal";
+import { THEME_SCRIPT } from "@/lib/theme";
 import { getViewer, isOfficer } from "@/lib/auth";
 import { getSite } from "@/lib/season";
 import { owBoard, valBoard } from "@/lib/views";
@@ -15,14 +16,22 @@ export const metadata: Metadata = {
   icons: { icon: "/logo.png" },
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+  ],
+};
+
 export const dynamic = "force-dynamic";
 
 /** Everyone the search box can find: members, and anyone who has played. */
 async function findable(): Promise<Findable[]> {
   try {
     const site = await getSite();
-    const val = new Map([...valBoard(site).rows, ...valBoard(site).unranked].map((r) => [r.person.key, r.rating]));
-    const ow = new Map([...owBoard(site, null).rows, ...owBoard(site, null).unranked].map((r) => [r.person.key, r.rating]));
+    const vb = valBoard(site), ob = owBoard(site, null);
+    const val = new Map([...vb.rows, ...vb.unranked].map((r) => [r.person.key, r.rating]));
+    const ow = new Map([...ob.rows, ...ob.unranked].map((r) => [r.person.key, r.rating]));
     return [...site.people.values()]
       .filter((p) => p.memberId || val.has(p.key) || ow.has(p.key))
       .map((p) => ({
@@ -37,17 +46,18 @@ async function findable(): Promise<Findable[]> {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const viewer = await getViewer();
+  const [viewer, people] = await Promise.all([getViewer(), findable()]);
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <link rel="stylesheet" href="/fonts/fonts.css" />
       </head>
       <body>
         <GlobalNav
           officer={isOfficer(viewer)}
           viewer={viewer ? { name: viewer.name, slug: viewer.slug, avatar: <Avatar name={viewer.name} url={viewer.avatarUrl} /> } : null}
-          people={await findable()}
+          people={people}
         />
         <LocalNav />
         <Reveal />

@@ -4,6 +4,7 @@
  * enough to rebuild whenever games change; cached per server instance until
  * the data version moves.
  */
+import { cache } from "react";
 import { db, dataVersion } from "./db";
 import { accountIndex, approvedAccounts } from "./accounts";
 import { agentClasses, heroRoles, OW_ROLES, VAL_CLASSES, type OwRole, type ValClass } from "./games";
@@ -206,18 +207,19 @@ export interface Site {
 
 export const level = (site: Site, key: string) => levelFor(site.xp.get(key) ?? 0);
 
-let cache: { version: string; site: Promise<Site> } | null = null;
+let built: { version: string; site: Promise<Site> } | null = null;
 
-export async function getSite(): Promise<Site> {
+/** The layout and the page both ask; within one request the version is checked once. */
+export const getSite = cache(async (): Promise<Site> => {
   const version = await dataVersion();
-  if (!cache || cache.version !== version) cache = { version, site: build(version) };
+  if (!built || built.version !== version) built = { version, site: build(version) };
   try {
-    return await cache.site;
+    return await built.site;
   } catch (e) {
-    cache = null;
+    built = null;
     throw e;
   }
-}
+});
 
 async function build(version: string): Promise<Site> {
   const sql = db();

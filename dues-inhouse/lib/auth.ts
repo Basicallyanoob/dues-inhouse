@@ -27,8 +27,10 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   }
   if (!row && supabaseConfigured()) {
     const supabase = await supabaseServer();
-    const { data } = await supabase.auth.getUser();
-    if (data.user) [row] = await db()`select * from players where auth_id = ${data.user.id}`;
+    // getClaims checks the token's signature locally (no round trip to Supabase Auth) when the project uses asymmetric signing keys.
+    const { data } = await supabase.auth.getClaims();
+    const sub = data?.claims?.sub;
+    if (sub) [row] = await db()`select * from players where auth_id = ${sub}`;
   }
   if (!row) return null;
   return { id: row.id, name: row.display_name, slug: row.slug, avatarUrl: row.avatar_url, role: row.role };
