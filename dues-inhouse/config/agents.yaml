@@ -3,6 +3,7 @@
 # `overtime build` and shown as "Unknown class" until they are added.
 # Last checked 9 October 2026: 29 agents, the newest Miks (controller, March 2026).
 duelist:
+  - Hush
   - Iso
   - Jett
   - Neon
